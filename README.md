@@ -1,22 +1,64 @@
 # claudefm
 
-Minimal public npm package for the `claudefm` name.
+Play the Claude FM YouTube live stream from your terminal.
 
 ## Install
 
 ```bash
-npm install claudefm
+npm install -g claudefm
 ```
 
-## CLI
+## Quick Start
 
 ```bash
-npx claudefm
+claudefm
 ```
 
-## Usage
+`claudefm` now opens an OpenAudio-style terminal player first, then launches Claude FM automatically.
+
+If terminal playback is ready, audio starts immediately and the TUI stays live with progress, status, and transport controls.
+
+If dependencies are missing, it falls back to opening the YouTube stream in your browser and still keeps the terminal UI up so the launch feels intentional instead of broken.
+
+Inside the dashboard:
+
+- `space` pause/resume
+- `left` / `right` seek
+- `+` / `-` volume
+- `o` open YouTube in the browser
+- `q` quit
+
+## Commands
 
 ```bash
+claudefm
+claudefm play
+claudefm doctor
+claudefm setup
+claudefm setup --yes
+claudefm open
 claudefm --help
-claudefm --version
+claudefm --no-ui
 ```
+
+## Requirements
+
+- `yt-dlp`
+- `mpv` or `ffplay`
+
+## Setup Help
+
+Use:
+
+```bash
+claudefm doctor
+claudefm setup
+```
+
+On macOS with Homebrew installed, `claudefm setup` prints:
+
+```bash
+brew install yt-dlp mpv
+```
+
+The CLI defaults to the official Claude FM YouTube live stream and plays audio only.
