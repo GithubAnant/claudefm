@@ -82,10 +82,7 @@ export function controlLines(state: DashboardState): string[] {
   }
 
   if (!state.canUseRichPlayer) {
-    return [
-      "rich controls need mpv",
-      state.browserEnabled ? "o      open youtube       q  quit" : "q      quit"
-    ];
+    return [state.browserEnabled ? "o      open youtube       q  quit" : "q      quit"];
   }
 
   return [

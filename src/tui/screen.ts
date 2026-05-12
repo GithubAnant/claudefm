@@ -1,10 +1,9 @@
 import process from "node:process";
-import { LOGO_IMAGE_GAP, RESET, THEME } from "./theme.js";
+import { RESET, THEME } from "./theme.js";
 
 export type LineVariant =
   | "blank"
   | "logo"
-  | "imageLogo"
   | "panel"
   | "panelTitle"
   | "columns"
@@ -21,9 +20,6 @@ export interface ScreenLine {
   rightText?: string;
   rightWidth?: number;
   logoFmStart?: number;
-  imageEscape?: string;
-  imageTextStart?: number;
-  imageAccent?: boolean;
 }
 
 export function fit(text: string, width: number): string {
@@ -152,26 +148,6 @@ export function paintLine(line: ScreenLine, width: number, columns: number, left
       " ".repeat(leftPad),
       THEME.accent,
       padded,
-      THEME.canvas,
-      " ".repeat(rightPad),
-      RESET
-    ].join("");
-  }
-
-  if (line.variant === "imageLogo") {
-    const imageTextStart = line.imageTextStart ?? 0;
-    const imagePrefix = line.imageEscape
-      ? `${line.imageEscape}${" ".repeat(LOGO_IMAGE_GAP)}`
-      : " ".repeat(imageTextStart);
-    const textWidth = Math.max(0, width - imageTextStart);
-    const foreground = line.imageAccent ? THEME.accent : THEME.muted;
-
-    return [
-      THEME.canvas,
-      " ".repeat(leftPad),
-      imagePrefix,
-      foreground,
-      fit(line.text, textWidth),
       THEME.canvas,
       " ".repeat(rightPad),
       RESET

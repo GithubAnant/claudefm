@@ -21,7 +21,6 @@ export const THEME = {
 export const PANEL_PADDING_X = 2;
 export const PANEL_PADDING_Y = 2;
 export const SECTION_GAP = 2;
-export const LOGO_IMAGE_GAP = 3;
 
 export function enterScreen(): void {
   process.stdout.write(`${ENTER_ALT_SCREEN}${THEME.canvas}${THEME.text}`);

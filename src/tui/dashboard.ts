@@ -1,22 +1,17 @@
 import process from "node:process";
 import { clearScreenDown, cursorTo } from "node:readline";
-import { CLAUDE_FM_URL } from "../constants.js";
 import { inspectEnvironment } from "../environment.js";
 import { formatClock, formatDisplayTitle, renderBar } from "../format.js";
 import { MpvController } from "../mpv-controller.js";
 import { openInBrowser, playWithFfplay } from "../player.js";
 import type { CommandRunner, MpvRuntimeState, ParsedArgs, Platform } from "../types.js";
-import { logoLines } from "./logo.js";
-import { blankLines, paintScreen, type ScreenLine, wrapText } from "./screen.js";
+import { blankLines, centerText, paintScreen, type ScreenLine, wrapText } from "./screen.js";
 import {
   controlLines,
   describeRuntime,
   formatArtistLine,
   formatPlaybackError,
-  joinLineColumns,
-  sectionLines,
-  setupLines,
-  shouldShowSetup
+  sectionLines
 } from "./sections.js";
 import { type DashboardState, EMPTY_PLAYER } from "./state.js";
 import { enterScreen, exitScreen, PANEL_PADDING_X, SECTION_GAP, THEME } from "./theme.js";
@@ -283,46 +278,43 @@ function render(state: DashboardState): void {
 function buildDashboard(state: DashboardState): string {
   const columns = process.stdout.columns || 80;
   const width = Math.max(72, Math.min(100, columns - 8));
-  const columnGap = 4;
-  const leftWidth = Math.max(42, Math.floor((width - columnGap) * 0.62));
-  const rightWidth = width - leftWidth - columnGap;
   const progressDuration = state.runtime.duration ?? 1;
   const progressValue = state.runtime.timePos ?? 0;
   const progressClock = `${formatClock(progressValue)} / ${formatClock(state.runtime.duration)}`;
-  const nowPlayingBodyWidth = leftWidth - (PANEL_PADDING_X * 2);
-  const progressWidth = Math.max(12, nowPlayingBodyWidth - progressClock.length - 2);
-  const detailLines = wrapText(state.detail, nowPlayingBodyWidth).slice(0, 2);
-  const errorLines = state.error ? wrapText(state.error, nowPlayingBodyWidth - 6).slice(0, 2) : [];
+  const playerBodyWidth = width - (PANEL_PADDING_X * 2);
+  const progressWidth = Math.max(12, playerBodyWidth - progressClock.length - 2);
+  const stateLine = `${state.status.toLowerCase()}  volume ${state.runtime.volume}%`;
+  const errorLines = state.error ? wrapText(state.error, playerBodyWidth - 6).slice(0, 2) : [];
   const artistLine = formatArtistLine(state.runtime.artist);
-  const nowPlayingLines = [
+  const playerLines = [
     state.headline,
-    ...detailLines,
-    "",
+    stateLine,
     `${renderBar(progressValue, progressDuration, progressWidth)}  ${progressClock}`,
     state.error ? `error ${errorLines.join(" ")}` : artistLine
-  ].filter((line, index) => index < 4 || line.length > 0);
-  const hero = sectionLines("Claude FM", [
-    state.status,
-    `source ${state.url || CLAUDE_FM_URL}`
-  ], width);
-  const nowPlaying = sectionLines("Now Playing", nowPlayingLines, leftWidth);
-  const sidePanel = shouldShowSetup(state)
-    ? sectionLines("Setup", setupLines(state), rightWidth)
-    : sectionLines("Status", [
-        state.status.toLowerCase(),
-        `volume ${state.runtime.volume}%`,
-        `player ${state.playerLabel}`
-      ], rightWidth);
+  ].filter((line, index) => index < 3 || line.length > 0);
+  const player = sectionLines("Now Playing", playerLines, width);
   const controls = sectionLines("Controls", controlLines(state), width);
   const lines: ScreenLine[] = [
     ...logoLines(width),
     ...blankLines(SECTION_GAP),
-    ...hero,
-    ...blankLines(SECTION_GAP),
-    ...joinLineColumns(nowPlaying, sidePanel, columnGap),
+    ...player,
     ...blankLines(SECTION_GAP),
     ...controls
   ];
 
   return paintScreen(lines, width);
+}
+
+function logoLines(width: number): ScreenLine[] {
+  const logo = [
+    "█▀▀ █  ▄▀▀▄ █ █ █▀▄ █▀▀  █▀▀ █▄▀▄█",
+    "█   █  █▀▀█ █ █ █ █ █▀   █▀  █ ▀ █",
+    "▀▀▀ ▀▀ ▀  ▀ ▀▀▀ ▀▀  ▀▀▀  ▀   ▀   ▀"
+  ];
+
+  return [
+    ...logo.map((line) => ({ text: centerText(line, width), variant: "logo" as const })),
+    { text: "", variant: "blank" as const },
+    { text: centerText("music for thinking and building", width), variant: "muted" as const }
+  ];
 }
