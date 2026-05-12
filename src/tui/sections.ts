@@ -94,35 +94,79 @@ export function controlLines(state: DashboardState, width = Number.POSITIVE_INFI
     return [state.browserEnabled ? "o      open youtube       q  quit" : "q      quit"];
   }
 
-  const controls = [
+  const playbackControls = [
     ["space", "pause / resume"],
     ["left/right", "seek"],
-    ["+/-", "volume"],
+    ["+/-", "volume"]
+  ];
+  const appControls = [
     ...(state.browserEnabled ? [["o", "open youtube"]] : []),
     ["q", "quit"]
   ];
 
   if (width < 64) {
-    return packControlPairs([
-      ["space", "pause/resume"],
-      ["left/right", "seek"],
-      ["+/-", "volume"],
-      ...(state.browserEnabled ? [["o", "open youtube"]] : []),
-      ["q", "quit"]
+    const firstLine = `${compactControlPair("space", "pause/resume")}  ${compactControlPair("left/right", "seek")}`;
+    const secondLine = state.browserEnabled
+      ? `${compactControlPair("+/-", "volume")}    ${compactControlPair("o", "open youtube")}  ${compactControlPair("q", "quit")}`
+      : `${compactControlPair("+/-", "volume")}    ${compactControlPair("q", "quit")}`;
+
+    if (firstLine.length <= width && secondLine.length <= width) {
+      return [firstLine, secondLine];
+    }
+
+    return packControlGroups([
+      [
+        ["space", "pause/resume"],
+        ["left/right", "seek"],
+        ["+/-", "volume"]
+      ],
+      [
+        ...(state.browserEnabled ? [["o", "open youtube"]] : []),
+        ["q", "quit"]
+      ]
     ], width);
   }
 
-  return [
-    `${controlPair("space", "pause / resume")}    ${controlPair("left/right", "seek")}`,
-    state.browserEnabled
-      ? `${controlPair("+/-", "volume")}    ${controlPair("o", "open youtube")}`
-      : controlPair("+/-", "volume"),
-    controlPair("q", "quit")
-  ];
+  const playbackLine = playbackControls.map(([key, action]) => controlPair(key, action)).join("    ");
+  const appLine = appControls.map(([key, action]) => controlPair(key, action)).join("    ");
+  const groupedLine = `${playbackLine}        ${appLine}`;
+
+  if (groupedLine.length <= width) {
+    return [groupedLine];
+  }
+
+  return [playbackLine, appLine];
 }
 
 function controlPair(key: string, action: string): string {
   return `${key.padEnd(12, " ")}${action}`;
+}
+
+function compactControlPair(key: string, action: string): string {
+  return `${key} ${action}`;
+}
+
+function packControlGroups(groups: string[][][], width: number): string[] {
+  const lines: string[] = [];
+
+  for (const group of groups) {
+    const groupLines = packControlPairs(group, width);
+    const firstLine = groupLines[0];
+    const lastLine = lines[lines.length - 1];
+
+    if (firstLine && lastLine) {
+      const groupedLine = `${lastLine}    ${firstLine}`;
+      if (groupedLine.length <= width) {
+        lines[lines.length - 1] = groupedLine;
+        lines.push(...groupLines.slice(1));
+        continue;
+      }
+    }
+
+    lines.push(...groupLines);
+  }
+
+  return lines;
 }
 
 function packControlPairs(controls: string[][], width: number): string[] {
