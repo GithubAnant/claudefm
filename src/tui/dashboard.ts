@@ -279,7 +279,7 @@ export function buildDashboard(state: DashboardState): string {
   const columns = process.stdout.columns || 80;
   const rows = process.stdout.rows || 24;
   const horizontalMargin = columns >= 80 ? 8 : 0;
-  const width = Math.max(1, Math.min(100, columns - horizontalMargin));
+  const width = Math.max(1, Math.min(84, columns - horizontalMargin));
   const lines = buildDashboardLines(state, width, rows);
 
   return paintScreen(lines, width);
