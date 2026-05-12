@@ -116,7 +116,7 @@ export function controlLines(state: DashboardState, width = Number.POSITIVE_INFI
   ];
   const appControls = [
     ...(state.browserEnabled ? [["o", "open youtube"]] : []),
-    ["ctrl+p", "commands"],
+    ["ctrl+p", "settings"],
     ["q", "quit"]
   ];
 
@@ -174,7 +174,7 @@ export function styleControlLine(line: string): string | undefined {
     ["space", "pause/resume"],
     ["+/-", "volume"],
     ["o", "open youtube"],
-    ["ctrl+p", "commands"],
+    ["ctrl+p", "settings"],
     ["q", "quit"]
   ];
   let output = "";
