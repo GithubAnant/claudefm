@@ -91,7 +91,7 @@ export function paintScreen(lines: ScreenLine[], width: number): string {
   const columns = process.stdout.columns || 80;
   const leftPad = Math.max(0, Math.floor((columns - width) / 2));
   const visibleLines = lines.slice(0, rows);
-  const topPad = Math.max(0, Math.floor((rows - visibleLines.length) * 0.28));
+  const topPad = Math.max(0, Math.floor((rows - visibleLines.length) / 2));
   const painted = [
     ...Array.from({ length: topPad }, () => paintBlankLine(columns)),
     ...visibleLines.map((line) => paintLine(line, width, columns, leftPad))
