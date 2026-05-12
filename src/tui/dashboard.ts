@@ -279,8 +279,8 @@ function render(state: DashboardState): void {
 export function buildDashboard(state: DashboardState): string {
   const columns = process.stdout.columns || 80;
   const rows = process.stdout.rows || 24;
-  const horizontalMargin = columns >= 80 ? 8 : 0;
-  const width = Math.max(1, Math.min(84, columns - horizontalMargin));
+  const minimumSideMargin = columns >= 90 ? 12 : columns >= 72 ? 8 : columns >= 56 ? 4 : 0;
+  const width = Math.max(1, Math.min(76, columns - (minimumSideMargin * 2)));
   const lines = buildDashboardLines(state, width, rows);
 
   return paintScreen(lines, width);
