@@ -5,7 +5,7 @@ export function printHelp(): void {
   console.log("Usage: claudefm [command] [options]");
   console.log("");
   console.log("Commands:");
-  console.log("  play         Launch Claude FM and the mini terminal dashboard.");
+  console.log("  play         Launch the Claude FM terminal player.");
   console.log("  doctor       Check dependencies and show setup guidance.");
   console.log("  setup        Print or run the recommended install command.");
   console.log("  open         Open Claude FM in your browser.");
@@ -19,7 +19,7 @@ export function printHelp(): void {
   console.log("  --print         Print the setup command instead of running it.");
   console.log("  --yes           Run the setup command immediately.");
   console.log("  --no-browser    Do not fall back to opening the browser.");
-  console.log("  --no-ui         Skip the Claude FM terminal dashboard.");
+  console.log("  --no-ui         Skip the Claude FM terminal player.");
 }
 
 export function parseArgs(argv: string[] = []): ParseResult {

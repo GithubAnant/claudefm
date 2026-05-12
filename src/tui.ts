@@ -36,6 +36,20 @@ const EMPTY_PLAYER: MpvRuntimeState = {
 
 const ENTER_ALT_SCREEN = "\x1b[?1049h\x1b[?25l";
 const EXIT_ALT_SCREEN = "\x1b[?1049l\x1b[?25h\x1b[0m";
+const RESET = "\x1b[0m";
+const THEME = {
+  canvas: "\x1b[48;2;0;0;0m",
+  panel: "\x1b[48;2;17;17;17m",
+  panelAlt: "\x1b[48;2;23;23;23m",
+  text: "\x1b[38;2;242;242;242m",
+  muted: "\x1b[38;2;144;144;144m",
+  dim: "\x1b[38;2;102;102;102m",
+  accent: "\x1b[38;2;92;124;255m",
+  danger: "\x1b[38;2;255;122;122m",
+  warning: "\x1b[38;2;231;189;90m",
+  border: "\x1b[38;2;42;42;42m",
+  borderHot: "\x1b[38;2;92;124;255m"
+} as const;
 
 export function shouldUseDashboard(options: Pick<ParsedArgs, "json" | "ui">): boolean {
   return options.ui && !options.json && Boolean(process.stdout.isTTY && process.stdin.isTTY);
@@ -294,6 +308,7 @@ async function holdStaticDashboard(state: DashboardState, openBrowser?: () => bo
 }
 
 function render(state: DashboardState): void {
+  process.stdout.write(`${THEME.canvas}${THEME.text}`);
   cursorTo(process.stdout, 0, 0);
   clearScreenDown(process.stdout);
   process.stdout.write(buildDashboard(state));
@@ -335,11 +350,13 @@ function buildDashboard(state: DashboardState): string {
     "style openaudio-inspired single-stream layout"
   ], width);
 
-  return [
+  const screen = [
     hero,
     joinColumns(nowPlaying, stats),
     controls
   ].join("\n");
+
+  return paintScreen(screen, width);
 }
 
 function fit(text: string, width: number): string {
@@ -422,11 +439,49 @@ function joinColumns(left: string, right: string): string {
 }
 
 function enterScreen(): void {
-  process.stdout.write(ENTER_ALT_SCREEN);
+  process.stdout.write(`${ENTER_ALT_SCREEN}${THEME.canvas}${THEME.text}`);
 }
 
 function exitScreen(): void {
   process.stdout.write(EXIT_ALT_SCREEN);
+}
+
+function paintScreen(raw: string, width: number): string {
+  const rows = process.stdout.rows || 24;
+  const lines = raw.split("\n");
+  const painted = lines.map((line) => paintLine(line, width));
+  const emptyLine = `${THEME.canvas}${" ".repeat(width)}${RESET}`;
+
+  while (painted.length < rows) {
+    painted.push(emptyLine);
+  }
+
+  return `${painted.join("\n")}${RESET}`;
+}
+
+function paintLine(line: string, width: number): string {
+  const padded = fit(line, width);
+  const isBorder = /^[┌└]/.test(line);
+  const isHero = line.includes("CLAUDE FM");
+  const isSection = line.includes("NOW PLAYING") || line.includes("RUNTIME") || line.includes("CONTROLS");
+  const isError = line.includes("ERROR") || line.includes("error ");
+  const isWarning = line.includes("STARTING") || line.includes("BUFFERING");
+  const isMuted = line.includes("source ") || line.includes("setup ") || line.includes("style ");
+  const foreground = isError
+    ? THEME.danger
+    : isWarning
+      ? THEME.warning
+      : isHero || isSection || isBorder
+        ? THEME.accent
+        : isMuted
+          ? THEME.muted
+          : THEME.text;
+
+  if (line.trim().length === 0) {
+    return `${THEME.canvas}${" ".repeat(width)}${RESET}`;
+  }
+
+  return `${THEME.canvas}${foreground}${padded}${RESET}`;
 }
 
 function describeRuntime(runtime: MpvRuntimeState): string {
