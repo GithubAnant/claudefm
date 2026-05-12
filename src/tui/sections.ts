@@ -189,7 +189,7 @@ export function styleControlLine(line: string): string | undefined {
     }
 
     const [key, action] = match;
-    output += `${THEME.dim}${key}${THEME.muted} ${action}${THEME.text}`;
+    output += `${THEME.text}${key}${THEME.muted} ${action}${THEME.text}`;
     index += key.length + action.length + 1;
     styled = true;
   }
