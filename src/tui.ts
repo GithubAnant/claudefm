@@ -19,6 +19,18 @@ interface DashboardState {
   url: string;
 }
 
+type LineVariant = "blank" | "logo" | "panel" | "panelTitle" | "columns" | "columnsTitle" | "hint" | "danger" | "muted";
+
+interface ScreenLine {
+  text: string;
+  variant: LineVariant;
+  gap?: number;
+  leftWidth?: number;
+  rightText?: string;
+  rightWidth?: number;
+  logoFmStart?: number;
+}
+
 const EMPTY_PLAYER: MpvRuntimeState = {
   status: "idle",
   paused: false,
@@ -41,15 +53,18 @@ const THEME = {
   canvas: "\x1b[48;2;0;0;0m",
   panel: "\x1b[48;2;17;17;17m",
   panelAlt: "\x1b[48;2;23;23;23m",
-  text: "\x1b[38;2;242;242;242m",
-  muted: "\x1b[38;2;144;144;144m",
-  dim: "\x1b[38;2;102;102;102m",
-  accent: "\x1b[38;2;92;124;255m",
-  danger: "\x1b[38;2;255;122;122m",
-  warning: "\x1b[38;2;231;189;90m",
-  border: "\x1b[38;2;42;42;42m",
-  borderHot: "\x1b[38;2;92;124;255m"
+  text: "\x1b[38;2;246;238;232m",
+  muted: "\x1b[38;2;169;151;141m",
+  dim: "\x1b[38;2;116;99;90m",
+  accent: "\x1b[38;2;217;119;87m",
+  danger: "\x1b[38;2;255;128;102m",
+  warning: "\x1b[38;2;224;163;91m",
+  border: "\x1b[38;2;62;49;43m",
+  borderHot: "\x1b[38;2;217;119;87m"
 } as const;
+const PANEL_PADDING_X = 2;
+const PANEL_PADDING_Y = 2;
+const SECTION_GAP = 2;
 
 export function shouldUseDashboard(options: Pick<ParsedArgs, "json" | "ui">): boolean {
   return options.ui && !options.json && Boolean(process.stdout.isTTY && process.stdin.isTTY);
@@ -316,47 +331,55 @@ function render(state: DashboardState): void {
 
 function buildDashboard(state: DashboardState): string {
   const columns = process.stdout.columns || 80;
-  const width = Math.max(72, Math.min(108, columns - 2));
-  const leftWidth = Math.max(38, Math.floor((width - 3) * 0.62));
-  const rightWidth = width - leftWidth - 3;
+  const width = Math.max(72, Math.min(100, columns - 8));
+  const columnGap = 4;
+  const leftWidth = Math.max(42, Math.floor((width - columnGap) * 0.62));
+  const rightWidth = width - leftWidth - columnGap;
   const progressDuration = state.runtime.duration ?? 1;
   const progressValue = state.runtime.timePos ?? 0;
-  const progressWidth = Math.max(18, leftWidth - 12);
-
-  const hero = createBox("Claude FM", [
-    `${state.status}  |  always live  |  one stream, zero search`,
-    `source  ${state.url || CLAUDE_FM_URL}`
+  const progressClock = `${formatClock(progressValue)} / ${formatClock(state.runtime.duration)}`;
+  const nowPlayingBodyWidth = leftWidth - (PANEL_PADDING_X * 2);
+  const progressWidth = Math.max(12, nowPlayingBodyWidth - progressClock.length - 2);
+  const runtime = summarizeRuntime(state.runtime);
+  const detailLines = wrapText(state.detail, nowPlayingBodyWidth).slice(0, 2);
+  const errorLines = state.error ? wrapText(state.error, nowPlayingBodyWidth - 6).slice(0, 2) : [];
+  const hero = sectionLines("Claude FM", [
+    state.status,
+    `source ${state.url || CLAUDE_FM_URL}`
   ], width);
-
-  const nowPlaying = createBox("Now Playing", [
+  const nowPlaying = sectionLines("Now Playing", [
     state.headline,
-    ...wrapText(state.detail, leftWidth - 2),
+    ...detailLines,
     "",
-    `${renderBar(progressValue, progressDuration, progressWidth)}  ${formatClock(progressValue)} / ${formatClock(state.runtime.duration)}`,
-    state.error ? `error   ${state.error}` : `artist  ${state.runtime.artist || "--"}`
+    `${renderBar(progressValue, progressDuration, progressWidth)}  ${progressClock}`,
+    state.error ? `error ${errorLines.join(" ")}` : `artist ${state.runtime.artist || "--"}`
   ], leftWidth);
-
-  const stats = createBox("Runtime", [
-    ...summarizeRuntime(state.runtime),
-    `setup   ${state.installCommand || "none"}`,
+  const stats = sectionLines("Runtime", [
+    runtime[0] ?? "state --",
+    runtime[1] ?? "volume --",
+    runtime[2] ?? "cache --",
+    runtime[3] ?? "codec --",
+    `setup ${state.installCommand || "none"}`,
     state.browserEnabled ? "browser yes" : "browser no"
   ], rightWidth);
-
-  const controls = createBox("Controls", [
+  const controls = sectionLines("Controls", [
     state.canUseRichPlayer
       ? "space pause/resume   left/right seek   +/- volume"
       : "rich transport controls need mpv",
-    state.browserEnabled ? "o open youtube     q quit" : "q quit",
-    "style openaudio-inspired single-stream layout"
+    state.browserEnabled ? "o youtube     q quit" : "q quit"
   ], width);
+  const lines: ScreenLine[] = [
+    ...logoLines(width),
+    ...blankLines(SECTION_GAP),
+    ...hero,
+    ...blankLines(SECTION_GAP),
+    ...joinLineColumns(nowPlaying, stats, columnGap),
+    ...blankLines(SECTION_GAP),
+    ...controls,
+    ...hintLines(state, width)
+  ];
 
-  const screen = [
-    hero,
-    joinColumns(nowPlaying, stats),
-    controls
-  ].join("\n");
-
-  return paintScreen(screen, width);
+  return paintScreen(lines, width);
 }
 
 function fit(text: string, width: number): string {
@@ -365,22 +388,6 @@ function fit(text: string, width: number): string {
   }
 
   return text.padEnd(width, " ");
-}
-
-function createBox(title: string, lines: string[], width: number): string {
-  const innerWidth = Math.max(8, width - 2);
-  const bodyWidth = innerWidth - 2;
-  const topLabel = ` ${title.toUpperCase()} `;
-  const top = `┌${topLabel}${"─".repeat(Math.max(0, innerWidth - topLabel.length))}┐`;
-  const body = lines.flatMap((line) => {
-    if (line.length === 0) {
-      return [`│ ${" ".repeat(bodyWidth)} │`];
-    }
-
-    return wrapText(line, bodyWidth).map((part) => `│ ${fit(part, bodyWidth)} │`);
-  });
-  const bottom = `└${"─".repeat(innerWidth)}┘`;
-  return [top, ...body, bottom].join("\n");
 }
 
 function wrapText(text: string, width: number): string[] {
@@ -422,22 +429,6 @@ function wrapText(text: string, width: number): string[] {
   return lines;
 }
 
-function joinColumns(left: string, right: string): string {
-  const leftLines = left.split("\n");
-  const rightLines = right.split("\n");
-  const leftWidth = Math.max(...leftLines.map((line) => line.length));
-  const rows = Math.max(leftLines.length, rightLines.length);
-  const output: string[] = [];
-
-  for (let index = 0; index < rows; index += 1) {
-    const leftLine = leftLines[index] ?? " ".repeat(leftWidth);
-    const rightLine = rightLines[index] ?? "";
-    output.push(`${fit(leftLine, leftWidth)}   ${rightLine}`);
-  }
-
-  return output.join("\n");
-}
-
 function enterScreen(): void {
   process.stdout.write(`${ENTER_ALT_SCREEN}${THEME.canvas}${THEME.text}`);
 }
@@ -446,42 +437,201 @@ function exitScreen(): void {
   process.stdout.write(EXIT_ALT_SCREEN);
 }
 
-function paintScreen(raw: string, width: number): string {
+function logoLines(width: number): ScreenLine[] {
+  const logo = [
+    ["████ █    ████ █  █ ███  ████", " ████ █   █"],
+    ["█    █    █  █ █  █ █  █ █   ", " █    ██ ██"],
+    ["█    █    ████ █  █ █  █ ███ ", " ███  █ █ █"],
+    ["█    █    █  █ █  █ █  █ █   ", " █    █   █"],
+    ["████ ████ █  █ ████ ███  ████", " █    █   █"]
+  ];
+
+  return [
+    ...logo.map(([main, fm]) => centerLogoLine(main, fm, width)),
+    { text: "", variant: "blank" as const },
+    { text: centerText("music for thinking and building", width), variant: "muted" as const }
+  ];
+}
+
+function centerLogoLine(main: string, fm: string, width: number): ScreenLine {
+  const text = `${main}${fm}`;
+  if (text.length >= width) {
+    return { text: fit(text, width), logoFmStart: Math.min(main.length, width), variant: "logo" };
+  }
+
+  const left = Math.floor((width - text.length) / 2);
+  return {
+    text: `${" ".repeat(left)}${text}${" ".repeat(width - text.length - left)}`,
+    logoFmStart: left + main.length,
+    variant: "logo"
+  };
+}
+
+function sectionLines(title: string, lines: string[], width: number): ScreenLine[] {
+  const bodyWidth = width - (PANEL_PADDING_X * 2);
+  const paddedLines = [
+    ...Array.from({ length: PANEL_PADDING_Y }, () => ""),
+    title.toUpperCase(),
+    ...lines.flatMap((line) => line.length === 0 ? [""] : wrapText(line, bodyWidth)),
+    ...Array.from({ length: PANEL_PADDING_Y }, () => "")
+  ];
+
+  return paddedLines.map((line, index) => ({
+    text: `${" ".repeat(PANEL_PADDING_X)}${fit(line, bodyWidth)}${" ".repeat(PANEL_PADDING_X)}`,
+    variant: index === PANEL_PADDING_Y ? "panelTitle" : "panel"
+  }));
+}
+
+function hintLines(state: DashboardState, width: number): ScreenLine[] {
+  const setup = state.installCommand ? `setup ${state.installCommand}` : "ready";
+
+  return [
+    ...blankLines(SECTION_GAP),
+    { text: centerText(setup, width), variant: "muted" }
+  ];
+}
+
+function blankLine(): ScreenLine {
+  return { text: "", variant: "blank" };
+}
+
+function blankLines(count: number): ScreenLine[] {
+  return Array.from({ length: count }, () => blankLine());
+}
+
+function centerText(text: string, width: number): string {
+  if (text.length >= width) {
+    return fit(text, width);
+  }
+
+  const left = Math.floor((width - text.length) / 2);
+  return `${" ".repeat(left)}${text}${" ".repeat(width - text.length - left)}`;
+}
+
+function paintScreen(lines: ScreenLine[], width: number): string {
   const rows = process.stdout.rows || 24;
-  const lines = raw.split("\n");
-  const painted = lines.map((line) => paintLine(line, width));
-  const emptyLine = `${THEME.canvas}${" ".repeat(width)}${RESET}`;
+  const columns = process.stdout.columns || 80;
+  const leftPad = Math.max(0, Math.floor((columns - width) / 2));
+  const topPad = Math.max(0, Math.floor((rows - lines.length) / 2));
+  const painted = [
+    ...Array.from({ length: topPad }, () => paintBlankLine(columns)),
+    ...lines.map((line) => paintLine(line, width, columns, leftPad))
+  ];
 
   while (painted.length < rows) {
-    painted.push(emptyLine);
+    painted.push(paintBlankLine(columns));
   }
 
   return `${painted.join("\n")}${RESET}`;
 }
 
-function paintLine(line: string, width: number): string {
-  const padded = fit(line, width);
-  const isBorder = /^[┌└]/.test(line);
-  const isHero = line.includes("CLAUDE FM");
-  const isSection = line.includes("NOW PLAYING") || line.includes("RUNTIME") || line.includes("CONTROLS");
-  const isError = line.includes("ERROR") || line.includes("error ");
-  const isWarning = line.includes("STARTING") || line.includes("BUFFERING");
-  const isMuted = line.includes("source ") || line.includes("setup ") || line.includes("style ");
-  const foreground = isError
-    ? THEME.danger
-    : isWarning
-      ? THEME.warning
-      : isHero || isSection || isBorder
-        ? THEME.accent
-        : isMuted
-          ? THEME.muted
-          : THEME.text;
+function paintLine(line: ScreenLine, width: number, columns: number, leftPad: number): string {
+  const padded = fit(line.text, width);
+  const rightPad = Math.max(0, columns - leftPad - width);
 
-  if (line.trim().length === 0) {
-    return `${THEME.canvas}${" ".repeat(width)}${RESET}`;
+  if (line.variant === "columns" || line.variant === "columnsTitle") {
+    const gap = line.gap ?? 3;
+    const leftWidth = line.leftWidth ?? line.text.length;
+    const rightText = line.rightText ?? "";
+    const rightWidth = line.rightWidth ?? rightText.length;
+    const remainingPad = Math.max(0, width - leftWidth - gap - rightWidth);
+    const leftForeground = panelForeground(line.text, line.variant === "columnsTitle");
+    const rightForeground = panelForeground(rightText, line.variant === "columnsTitle");
+
+    return [
+      THEME.canvas,
+      " ".repeat(leftPad),
+      THEME.panel,
+      leftForeground,
+      fit(line.text, leftWidth),
+      THEME.canvas,
+      " ".repeat(gap),
+      THEME.panel,
+      rightForeground,
+      fit(rightText, rightWidth),
+      THEME.canvas,
+      " ".repeat(remainingPad + rightPad),
+      RESET
+    ].join("");
   }
 
-  return `${THEME.canvas}${foreground}${padded}${RESET}`;
+  if (line.variant === "panel" || line.variant === "panelTitle") {
+    const foreground = panelForeground(line.text, line.variant === "panelTitle");
+    return `${THEME.canvas}${" ".repeat(leftPad)}${THEME.panel}${foreground}${padded}${THEME.canvas}${" ".repeat(rightPad)}${RESET}`;
+  }
+
+  if (line.variant === "blank" || line.text.trim().length === 0) {
+    return paintBlankLine(columns);
+  }
+
+  if (line.variant === "logo" && line.logoFmStart !== undefined) {
+    return [
+      THEME.canvas,
+      " ".repeat(leftPad),
+      THEME.accent,
+      padded,
+      THEME.canvas,
+      " ".repeat(rightPad),
+      RESET
+    ].join("");
+  }
+
+  const foreground = line.variant === "logo"
+    ? THEME.accent
+    : line.variant === "danger"
+      ? THEME.danger
+      : line.variant === "hint"
+        ? THEME.text
+        : THEME.muted;
+
+  return `${THEME.canvas}${" ".repeat(leftPad)}${foreground}${padded}${THEME.canvas}${" ".repeat(rightPad)}${RESET}`;
+}
+
+function paintBlankLine(columns: number): string {
+  return `${THEME.canvas}${" ".repeat(columns)}${RESET}`;
+}
+
+function joinLineColumns(left: ScreenLine[], right: ScreenLine[], gap: number): ScreenLine[] {
+  const leftWidth = Math.max(...left.map((line) => line.text.length));
+  const rightWidth = Math.max(...right.map((line) => line.text.length));
+  const rows = Math.max(left.length, right.length);
+  const output: ScreenLine[] = [];
+
+  for (let index = 0; index < rows; index += 1) {
+    const leftLine = left[index] ?? { text: " ".repeat(leftWidth), variant: "panel" as const };
+    const rightLine = right[index] ?? { text: "", variant: "panel" as const };
+    output.push({
+      text: leftLine.text,
+      rightText: rightLine.text,
+      leftWidth,
+      rightWidth,
+      gap,
+      variant: leftLine.variant === "panelTitle" || rightLine.variant === "panelTitle" ? "columnsTitle" : "columns"
+    });
+  }
+
+  return output;
+}
+
+function panelForeground(text: string, isTitle: boolean): string {
+  const trimmed = text.trimStart();
+  if (trimmed.startsWith("error")) {
+    return THEME.danger;
+  }
+
+  if (trimmed.startsWith("ERROR") || trimmed.startsWith("PLAYING") || trimmed.startsWith("STARTING") || trimmed.startsWith("BUFFERING")) {
+    return THEME.accent;
+  }
+
+  if (text.includes("█") || text.includes("·")) {
+    return THEME.accent;
+  }
+
+  if (text.includes("source ")) {
+    return THEME.muted;
+  }
+
+  return isTitle ? THEME.accent : THEME.text;
 }
 
 function describeRuntime(runtime: MpvRuntimeState): string {
