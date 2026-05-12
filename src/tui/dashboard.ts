@@ -294,16 +294,28 @@ interface LayoutCandidate {
 }
 
 function buildDashboardLines(state: DashboardState, width: number, rows: number): ScreenLine[] {
-  const candidates: LayoutCandidate[] = [
-    { logo: "full", gap: 2, panelPaddingY: 2 },
-    { logo: "full", gap: 1, panelPaddingY: 1 },
-    { logo: "compact", gap: 1, panelPaddingY: 1 },
-    { logo: "compact", gap: 1, panelPaddingY: 0 },
-    { logo: "compact", gap: 0, panelPaddingY: 0 },
-    { logo: "none", gap: 0, panelPaddingY: 0 }
-  ];
+  const candidates = layoutCandidates(width, rows);
   const layouts = candidates.map((candidate) => buildDashboardCandidate(state, width, candidate));
   return layouts.find((layout) => layout.length <= rows) ?? layouts[layouts.length - 1];
+}
+
+function layoutCandidates(width: number, rows: number): LayoutCandidate[] {
+  const shouldPreferCompact = width < 72 || rows < 28;
+  const compactCandidates: LayoutCandidate[] = [
+    { logo: "compact", gap: 1, panelPaddingY: 0 },
+    { logo: "compact", gap: 0, panelPaddingY: 0 },
+    { logo: "compact", gap: 1, panelPaddingY: 1 },
+    { logo: "none", gap: 0, panelPaddingY: 0 }
+  ];
+
+  if (shouldPreferCompact) {
+    return compactCandidates;
+  }
+
+  return [
+    { logo: "full", gap: 1, panelPaddingY: 1 },
+    ...compactCandidates
+  ];
 }
 
 function buildDashboardCandidate(state: DashboardState, width: number, candidate: LayoutCandidate): ScreenLine[] {
@@ -321,7 +333,7 @@ function buildDashboardCandidate(state: DashboardState, width: number, candidate
     state.error ? `error ${errorLines.join(" ")}` : artistLine
   ].filter((line, index) => index < 2 || line.length > 0);
   const player = sectionLines("Now Playing", playerLines, width, { paddingY: candidate.panelPaddingY });
-  const controls = sectionLines("Controls", controlLines(state), width, { paddingY: candidate.panelPaddingY });
+  const controls = sectionLines("Controls", controlLines(state, playerBodyWidth), width, { paddingY: candidate.panelPaddingY });
   return [
     ...logoLines(width, candidate.logo),
     ...blankLines(candidate.gap),

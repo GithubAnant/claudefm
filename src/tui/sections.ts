@@ -81,7 +81,7 @@ export function formatArtistLine(artist: string): string {
   return `artist ${normalized}`;
 }
 
-export function controlLines(state: DashboardState): string[] {
+export function controlLines(state: DashboardState, width = Number.POSITIVE_INFINITY): string[] {
   if (state.status === "ERROR") {
     return [state.browserEnabled ? "o      open youtube       q  quit" : "q      quit"];
   }
@@ -90,11 +90,29 @@ export function controlLines(state: DashboardState): string[] {
     return [state.browserEnabled ? "o      open youtube       q  quit" : "q      quit"];
   }
 
-  return [
-    "space  pause / resume     left/right  seek",
-    state.browserEnabled ? "+/-    volume             o  open youtube" : "+/-    volume",
-    "q      quit"
+  const controls = [
+    ["space", "pause / resume"],
+    ["left/right", "seek"],
+    ["+/-", "volume"],
+    ...(state.browserEnabled ? [["o", "open youtube"]] : []),
+    ["q", "quit"]
   ];
+
+  if (width < 48) {
+    return controls.map(([key, action]) => controlPair(key, action));
+  }
+
+  return [
+    `${controlPair("space", "pause / resume")}    ${controlPair("left/right", "seek")}`,
+    state.browserEnabled
+      ? `${controlPair("+/-", "volume")}    ${controlPair("o", "open youtube")}`
+      : controlPair("+/-", "volume"),
+    controlPair("q", "quit")
+  ];
+}
+
+function controlPair(key: string, action: string): string {
+  return `${key.padEnd(12, " ")}${action}`;
 }
 
 export function formatPlaybackError(error: unknown): string {
