@@ -15,6 +15,9 @@ export function sectionLines(title: string, lines: string[], width: number, opti
   const titleLine = options.titleRight
     ? inlineRight(title.toUpperCase(), options.titleRight, bodyWidth)
     : title.toUpperCase();
+  const styledTitleLine = options.titleRight
+    ? styleTitleRight(title.toUpperCase(), options.titleRight, bodyWidth)
+    : undefined;
   const paddedLines = [
     ...Array.from({ length: paddingY }, () => ""),
     titleLine,
@@ -29,7 +32,9 @@ export function sectionLines(title: string, lines: string[], width: number, opti
 
     return {
       text: `${" ".repeat(PANEL_PADDING_X)}${fittedLine}${" ".repeat(PANEL_PADDING_X)}`,
-      styledText: styledLine
+      styledText: isTitle && styledTitleLine
+        ? `${" ".repeat(PANEL_PADDING_X)}${styledTitleLine}${" ".repeat(PANEL_PADDING_X)}`
+        : styledLine
         ? `${" ".repeat(PANEL_PADDING_X)}${styledLine}${" ".repeat(PANEL_PADDING_X)}`
         : undefined,
       variant: isTitle ? "panelTitle" : "panel"
@@ -204,6 +209,20 @@ function inlineRight(left: string, right: string, width: number): string {
     : left;
   const spacing = Math.max(gap, width - fittedLeft.length - right.length);
   return `${fittedLeft}${" ".repeat(spacing)}${right}`;
+}
+
+function styleTitleRight(left: string, right: string, width: number): string | undefined {
+  if (right.length >= width) {
+    return `${THEME.text}${right.slice(0, width)}${THEME.accent}`;
+  }
+
+  const gap = 2;
+  const leftWidth = Math.max(0, width - right.length - gap);
+  const fittedLeft = left.length > leftWidth
+    ? `${left.slice(0, Math.max(0, leftWidth - 3))}...`
+    : left;
+  const spacing = Math.max(gap, width - fittedLeft.length - right.length);
+  return `${THEME.accent}${fittedLeft}${" ".repeat(spacing)}${THEME.text}${right}${THEME.accent}`;
 }
 
 export function formatPlaybackError(error: unknown): string {
