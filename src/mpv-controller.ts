@@ -26,6 +26,8 @@ export class MpvController extends EventEmitter {
   private socketPath = join(tmpdir(), `claudefm-${process.pid}-${Date.now()}.sock`);
   private state: MpvRuntimeState = createInitialRuntimeState();
   private destroyed = false;
+  private startupError: Error | null = null;
+  private stderrTail = "";
 
   get snapshot(): MpvRuntimeState {
     return { ...this.state };
@@ -53,12 +55,22 @@ export class MpvController extends EventEmitter {
     );
 
     this.child = child;
+    this.startupError = null;
+    this.stderrTail = "";
     this.state = {
       ...createInitialRuntimeState(),
       status: "starting",
       title: "Claude FM"
     };
     this.emitState();
+
+    child.once("error", (error) => {
+      this.startupError = error;
+      if (!this.destroyed) {
+        this.state = { ...this.state, status: "idle" };
+        this.emit("exit", { code: null, signal: null });
+      }
+    });
 
     child.once("exit", (code, signal) => {
       if (!this.destroyed) {
@@ -68,8 +80,9 @@ export class MpvController extends EventEmitter {
       void this.destroy();
     });
 
-    child.stderr?.on("data", () => {
+    child.stderr?.on("data", (chunk: Buffer) => {
       // Keep stderr drained without surfacing mpv noise into the TUI.
+      this.stderrTail = `${this.stderrTail}${chunk.toString("utf8")}`.slice(-600);
     });
 
     try {
@@ -123,8 +136,12 @@ export class MpvController extends EventEmitter {
     const deadline = Date.now() + MpvController.SOCKET_WAIT_MS;
 
     while (Date.now() < deadline) {
+      if (this.startupError) {
+        throw new Error(`mpv failed to start: ${this.startupError.message}`);
+      }
+
       if (!this.child || this.child.exitCode !== null || this.child.killed) {
-        throw new Error("mpv exited before IPC socket became available");
+        throw new Error(`mpv exited before IPC socket became available${this.formatStderrTail()}`);
       }
 
       if (!existsSync(this.socketPath)) {
@@ -157,7 +174,7 @@ export class MpvController extends EventEmitter {
       }
     }
 
-    throw new Error("mpv IPC socket did not become available");
+    throw new Error(`mpv IPC socket did not become available${this.formatStderrTail()}`);
   }
 
   private async observeProperties(): Promise<void> {
@@ -190,7 +207,12 @@ export class MpvController extends EventEmitter {
         continue;
       }
 
-      const payload = JSON.parse(trimmed) as MpvMessage;
+      let payload: MpvMessage;
+      try {
+        payload = JSON.parse(trimmed) as MpvMessage;
+      } catch {
+        continue;
+      }
 
       if (typeof payload.request_id === "number") {
         const pending = this.pending.get(payload.request_id);
@@ -281,6 +303,11 @@ export class MpvController extends EventEmitter {
       this.pending.set(requestId, { resolve, reject });
       this.socket?.write(`${JSON.stringify({ command, request_id: requestId })}\n`);
     });
+  }
+
+  private formatStderrTail(): string {
+    const message = this.stderrTail.trim().split("\n").at(-1)?.trim();
+    return message ? ` (${message})` : "";
   }
 }
 

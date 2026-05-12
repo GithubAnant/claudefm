@@ -11,6 +11,7 @@ import {
   run,
   runSetup
 } from "../dist/index.js";
+import { formatDisplayTitle } from "../dist/format.js";
 
 async function withCapturedConsole(fn) {
   const originalLog = console.log;
@@ -237,4 +238,12 @@ test("run reports unknown args", async () => {
   const { result, errors } = await withCapturedConsole(() => run(["--wat"]));
   assert.equal(result, 1);
   assert.match(errors[0], /Unknown argument: --wat/);
+});
+
+test("formatDisplayTitle removes Claude FM timestamp noise", () => {
+  assert.equal(
+    formatDisplayTitle("Claude FM music for thinking and building 2026-05-12 12:26"),
+    "Claude FM"
+  );
+  assert.equal(formatDisplayTitle("Other Stream 2026-05-12 12:26"), "Other Stream");
 });
