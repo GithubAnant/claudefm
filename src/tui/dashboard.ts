@@ -303,9 +303,9 @@ function buildDashboardLines(state: DashboardState, width: number, rows: number)
 function layoutCandidates(width: number, rows: number): LayoutCandidate[] {
   const shouldPreferCompact = width < 72 || rows < 28;
   const compactCandidates: LayoutCandidate[] = [
+    { logo: "compact", gap: 1, panelPaddingY: 1, player: "stacked" },
     { logo: "compact", gap: 1, panelPaddingY: 0, player: "stacked" },
     { logo: "compact", gap: 0, panelPaddingY: 0, player: "stacked" },
-    { logo: "compact", gap: 1, panelPaddingY: 1, player: "stacked" },
     { logo: "none", gap: 0, panelPaddingY: 0, player: "stacked" }
   ];
 
@@ -375,19 +375,19 @@ function rightAlign(text: string, width: number): string {
 }
 
 function logoLines(width: number, mode: LogoMode): ScreenLine[] {
-  if (mode === "none") {
-    return [];
-  }
-
-  if (mode === "compact") {
-    return [{ text: centerText("CLAUDE FM", width), variant: "logo" as const }];
-  }
-
   const logo = [
     "█▀▀ █  ▄▀▀▄ █ █ █▀▄ █▀▀ █▀▀ █▄▀▄█",
     "█   █  █▀▀█ █ █ █ █ █▀  █▀  █ ▀ █",
     "▀▀▀ ▀▀ ▀  ▀ ▀▀▀ ▀▀  ▀▀▀ ▀   ▀   ▀"
   ];
+
+  if (mode === "none") {
+    return [];
+  }
+
+  if (mode === "compact") {
+    return logo.map((line) => ({ text: centerText(line, width), variant: "logo" as const }));
+  }
 
   return [
     ...logo.map((line) => ({ text: centerText(line, width), variant: "logo" as const })),

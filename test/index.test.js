@@ -318,7 +318,7 @@ test("buildDashboard fits a short terminal viewport", () => {
   const plainLines = stripAnsi(output).split("\n");
 
   assert.equal(lines.length, 14);
-  assert.match(output, /CLAUDE FM/);
+  assert.match(output, /█▀▀/);
   assert.match(output, /NOW PLAYING/);
   assert.match(output, /CONTROLS/);
   assert.ok(plainLines.some((line) => line.includes("NOW PLAYING") && line.includes("Claude FM")));
