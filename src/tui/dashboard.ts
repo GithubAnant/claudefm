@@ -327,7 +327,7 @@ function buildDashboardCandidate(state: DashboardState, width: number, candidate
   const progressClock = `${formatClock(progressValue)} / ${formatClock(state.runtime.duration)}`;
   const playerBodyWidth = width - (PANEL_PADDING_X * 2);
   const progressWidth = Math.max(4, playerBodyWidth - progressClock.length - 2);
-  const stateLine = `${state.status.toLowerCase()}  volume ${state.runtime.volume}%`;
+  const stateLine = `${state.status.toLowerCase()} | volume ${state.runtime.volume}%`;
   const headerStatusFits = "NOW PLAYING".length + stateLine.length + 2 <= playerBodyWidth;
   const errorLines = state.error ? wrapText(state.error, playerBodyWidth - 6).slice(0, 2) : [];
   const artistLine = formatArtistLine(state.runtime.artist);
