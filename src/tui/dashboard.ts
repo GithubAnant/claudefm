@@ -291,6 +291,7 @@ interface LayoutCandidate {
   logo: LogoMode;
   gap: number;
   panelPaddingY: number;
+  player: "inline" | "stacked";
 }
 
 function buildDashboardLines(state: DashboardState, width: number, rows: number): ScreenLine[] {
@@ -302,10 +303,10 @@ function buildDashboardLines(state: DashboardState, width: number, rows: number)
 function layoutCandidates(width: number, rows: number): LayoutCandidate[] {
   const shouldPreferCompact = width < 72 || rows < 28;
   const compactCandidates: LayoutCandidate[] = [
-    { logo: "compact", gap: 1, panelPaddingY: 0 },
-    { logo: "compact", gap: 0, panelPaddingY: 0 },
-    { logo: "compact", gap: 1, panelPaddingY: 1 },
-    { logo: "none", gap: 0, panelPaddingY: 0 }
+    { logo: "compact", gap: 1, panelPaddingY: 0, player: "stacked" },
+    { logo: "compact", gap: 0, panelPaddingY: 0, player: "stacked" },
+    { logo: "compact", gap: 1, panelPaddingY: 1, player: "stacked" },
+    { logo: "none", gap: 0, panelPaddingY: 0, player: "stacked" }
   ];
 
   if (shouldPreferCompact) {
@@ -313,7 +314,7 @@ function layoutCandidates(width: number, rows: number): LayoutCandidate[] {
   }
 
   return [
-    { logo: "full", gap: 1, panelPaddingY: 1 },
+    { logo: "full", gap: 1, panelPaddingY: 1, player: "inline" },
     ...compactCandidates
   ];
 }
@@ -327,12 +328,16 @@ function buildDashboardCandidate(state: DashboardState, width: number, candidate
   const stateLine = `${state.status.toLowerCase()}  volume ${state.runtime.volume}%`;
   const errorLines = state.error ? wrapText(state.error, playerBodyWidth - 6).slice(0, 2) : [];
   const artistLine = formatArtistLine(state.runtime.artist);
+  const trackInTitle = candidate.player === "stacked";
   const playerLines = [
-    inlineRight(state.headline, stateLine, playerBodyWidth),
+    trackInTitle ? rightAlign(stateLine, playerBodyWidth) : inlineRight(state.headline, stateLine, playerBodyWidth),
     `${renderBar(progressValue, progressDuration, progressWidth)}  ${progressClock}`,
     state.error ? `error ${errorLines.join(" ")}` : artistLine
   ].filter((line, index) => index < 2 || line.length > 0);
-  const player = sectionLines("Now Playing", playerLines, width, { paddingY: candidate.panelPaddingY });
+  const player = sectionLines("Now Playing", playerLines, width, {
+    paddingY: candidate.panelPaddingY,
+    titleRight: trackInTitle ? state.headline : undefined
+  });
   const controls = sectionLines("Controls", controlLines(state, playerBodyWidth), width, { paddingY: candidate.panelPaddingY });
   return [
     ...logoLines(width, candidate.logo),
@@ -359,6 +364,14 @@ function inlineRight(left: string, right: string, width: number): string {
     : left;
   const spacing = Math.max(gap, width - fittedLeft.length - right.length);
   return `${fittedLeft}${" ".repeat(spacing)}${right}`;
+}
+
+function rightAlign(text: string, width: number): string {
+  if (text.length >= width) {
+    return text.slice(0, width);
+  }
+
+  return `${" ".repeat(width - text.length)}${text}`;
 }
 
 function logoLines(width: number, mode: LogoMode): ScreenLine[] {

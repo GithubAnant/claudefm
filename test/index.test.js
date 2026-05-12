@@ -321,6 +321,7 @@ test("buildDashboard fits a short terminal viewport", () => {
   assert.match(output, /CLAUDE FM/);
   assert.match(output, /NOW PLAYING/);
   assert.match(output, /CONTROLS/);
-  assert.ok(plainLines.some((line) => line.includes("Claude FM") && line.includes("paused  volume 100%")));
+  assert.ok(plainLines.some((line) => line.includes("NOW PLAYING") && line.includes("Claude FM")));
+  assert.ok(plainLines.some((line) => line.includes("paused  volume 100%")));
   assert.equal(plainLines.findIndex((line) => line.trim().length > 0), 0);
 });

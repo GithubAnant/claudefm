@@ -5,14 +5,18 @@ import type { DashboardState } from "./state.js";
 
 interface SectionOptions {
   paddingY?: number;
+  titleRight?: string;
 }
 
 export function sectionLines(title: string, lines: string[], width: number, options: SectionOptions = {}): ScreenLine[] {
   const bodyWidth = width - (PANEL_PADDING_X * 2);
   const paddingY = options.paddingY ?? PANEL_PADDING_Y;
+  const titleLine = options.titleRight
+    ? inlineRight(title.toUpperCase(), options.titleRight, bodyWidth)
+    : title.toUpperCase();
   const paddedLines = [
     ...Array.from({ length: paddingY }, () => ""),
-    title.toUpperCase(),
+    titleLine,
     ...lines.flatMap((line) => (line.length === 0 ? [""] : wrapText(line, bodyWidth))),
     ...Array.from({ length: paddingY }, () => "")
   ];
@@ -98,7 +102,7 @@ export function controlLines(state: DashboardState, width = Number.POSITIVE_INFI
     ["q", "quit"]
   ];
 
-  if (width < 48) {
+  if (width < 64) {
     return controls.map(([key, action]) => controlPair(key, action));
   }
 
@@ -113,6 +117,20 @@ export function controlLines(state: DashboardState, width = Number.POSITIVE_INFI
 
 function controlPair(key: string, action: string): string {
   return `${key.padEnd(12, " ")}${action}`;
+}
+
+function inlineRight(left: string, right: string, width: number): string {
+  if (right.length >= width) {
+    return right.slice(0, width);
+  }
+
+  const gap = 2;
+  const leftWidth = Math.max(0, width - right.length - gap);
+  const fittedLeft = left.length > leftWidth
+    ? `${left.slice(0, Math.max(0, leftWidth - 3))}...`
+    : left;
+  const spacing = Math.max(gap, width - fittedLeft.length - right.length);
+  return `${fittedLeft}${" ".repeat(spacing)}${right}`;
 }
 
 export function formatPlaybackError(error: unknown): string {
