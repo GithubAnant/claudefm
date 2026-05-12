@@ -15,6 +15,7 @@ export type LineVariant =
 export interface ScreenLine {
   text: string;
   variant: LineVariant;
+  styledText?: string;
   gap?: number;
   leftWidth?: number;
   rightText?: string;
@@ -136,7 +137,7 @@ export function paintLine(line: ScreenLine, width: number, columns: number, left
 
   if (line.variant === "panel" || line.variant === "panelTitle") {
     const foreground = panelForeground(line.text, line.variant === "panelTitle");
-    return `${THEME.canvas}${" ".repeat(leftPad)}${THEME.panel}${foreground}${padded}${THEME.canvas}${" ".repeat(rightPad)}${RESET}`;
+    return `${THEME.canvas}${" ".repeat(leftPad)}${THEME.panel}${foreground}${line.styledText ?? padded}${THEME.canvas}${" ".repeat(rightPad)}${RESET}`;
   }
 
   if (line.variant === "blank" || line.text.trim().length === 0) {

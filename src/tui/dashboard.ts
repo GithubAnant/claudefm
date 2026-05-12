@@ -11,7 +11,8 @@ import {
   describeRuntime,
   formatArtistLine,
   formatPlaybackError,
-  sectionLines
+  sectionLines,
+  styleControlLine
 } from "./sections.js";
 import { type DashboardState, EMPTY_PLAYER } from "./state.js";
 import { enterScreen, exitScreen, PANEL_PADDING_X, THEME } from "./theme.js";
@@ -340,7 +341,10 @@ function buildDashboardCandidate(state: DashboardState, width: number, candidate
     paddingY: candidate.panelPaddingY,
     titleRight: headerStatusFits ? stateLine : undefined
   });
-  const controls = sectionLines("Controls", controlLines(state, playerBodyWidth), width, { paddingY: candidate.panelPaddingY });
+  const controls = sectionLines("Controls", controlLines(state, playerBodyWidth), width, {
+    paddingY: candidate.panelPaddingY,
+    styleLine: styleControlLine
+  });
   return [
     ...logoLines(width, candidate.logo),
     ...blankLines(candidate.gap),

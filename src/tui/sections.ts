@@ -1,11 +1,12 @@
 import type { MpvRuntimeState } from "../types.js";
 import { fit, type ScreenLine, wrapText } from "./screen.js";
-import { PANEL_PADDING_X, PANEL_PADDING_Y } from "./theme.js";
+import { PANEL_PADDING_X, PANEL_PADDING_Y, THEME } from "./theme.js";
 import type { DashboardState } from "./state.js";
 
 interface SectionOptions {
   paddingY?: number;
   titleRight?: string;
+  styleLine?: (line: string, bodyWidth: number) => string | undefined;
 }
 
 export function sectionLines(title: string, lines: string[], width: number, options: SectionOptions = {}): ScreenLine[] {
@@ -21,10 +22,19 @@ export function sectionLines(title: string, lines: string[], width: number, opti
     ...Array.from({ length: paddingY }, () => "")
   ];
 
-  return paddedLines.map((line, index) => ({
-    text: `${" ".repeat(PANEL_PADDING_X)}${fit(line, bodyWidth)}${" ".repeat(PANEL_PADDING_X)}`,
-    variant: index === paddingY ? "panelTitle" : "panel"
-  }));
+  return paddedLines.map((line, index) => {
+    const isTitle = index === paddingY;
+    const fittedLine = fit(line, bodyWidth);
+    const styledLine = !isTitle ? options.styleLine?.(fittedLine, bodyWidth) : undefined;
+
+    return {
+      text: `${" ".repeat(PANEL_PADDING_X)}${fittedLine}${" ".repeat(PANEL_PADDING_X)}`,
+      styledText: styledLine
+        ? `${" ".repeat(PANEL_PADDING_X)}${styledLine}${" ".repeat(PANEL_PADDING_X)}`
+        : undefined,
+      variant: isTitle ? "panelTitle" : "panel"
+    };
+  });
 }
 
 export function joinLineColumns(left: ScreenLine[], right: ScreenLine[], gap: number): ScreenLine[] {
@@ -87,11 +97,11 @@ export function formatArtistLine(artist: string): string {
 
 export function controlLines(state: DashboardState, width = Number.POSITIVE_INFINITY): string[] {
   if (state.status === "ERROR") {
-    return [state.browserEnabled ? "o      open youtube       q  quit" : "q      quit"];
+    return [state.browserEnabled ? "o open youtube   q quit" : "q quit"];
   }
 
   if (!state.canUseRichPlayer) {
-    return [state.browserEnabled ? "o      open youtube       q  quit" : "q      quit"];
+    return [state.browserEnabled ? "o open youtube   q quit" : "q quit"];
   }
 
   const playbackControls = [
@@ -150,6 +160,36 @@ function packControlPairs(controls: string[][], width: number): string[] {
 
 function joinCompactControls(controls: string[][], gap: number): string {
   return controls.map(([key, action]) => `${key} ${action}`).join(" ".repeat(gap));
+}
+
+export function styleControlLine(line: string): string | undefined {
+  const controls = [
+    ["left/right", "seek"],
+    ["space", "pause/resume"],
+    ["+/-", "volume"],
+    ["o", "open youtube"],
+    ["q", "quit"]
+  ];
+  let output = "";
+  let index = 0;
+  let styled = false;
+
+  while (index < line.length) {
+    const match = controls.find(([key, action]) => line.startsWith(`${key} ${action}`, index));
+
+    if (!match) {
+      output += line[index];
+      index += 1;
+      continue;
+    }
+
+    const [key, action] = match;
+    output += `${THEME.dim}${key}${THEME.muted} ${action}${THEME.text}`;
+    index += key.length + action.length + 1;
+    styled = true;
+  }
+
+  return styled ? output : undefined;
 }
 
 function inlineRight(left: string, right: string, width: number): string {
