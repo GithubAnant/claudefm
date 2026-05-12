@@ -304,8 +304,10 @@ function layoutCandidates(width: number, rows: number): LayoutCandidate[] {
   const shouldPreferCompact = width < 72 || rows < 28;
   const compactCandidates: LayoutCandidate[] = [
     { logo: "compact", gap: 1, panelPaddingY: 1, player: "stacked" },
+    { logo: "compact", gap: 0, panelPaddingY: 1, player: "stacked" },
     { logo: "compact", gap: 1, panelPaddingY: 0, player: "stacked" },
     { logo: "compact", gap: 0, panelPaddingY: 0, player: "stacked" },
+    { logo: "none", gap: 0, panelPaddingY: 1, player: "stacked" },
     { logo: "none", gap: 0, panelPaddingY: 0, player: "stacked" }
   ];
 

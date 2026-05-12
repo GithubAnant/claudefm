@@ -103,7 +103,13 @@ export function controlLines(state: DashboardState, width = Number.POSITIVE_INFI
   ];
 
   if (width < 64) {
-    return controls.map(([key, action]) => controlPair(key, action));
+    return packControlPairs([
+      ["space", "pause/resume"],
+      ["left/right", "seek"],
+      ["+/-", "volume"],
+      ...(state.browserEnabled ? [["o", "open youtube"]] : []),
+      ["q", "quit"]
+    ], width);
   }
 
   return [
@@ -117,6 +123,32 @@ export function controlLines(state: DashboardState, width = Number.POSITIVE_INFI
 
 function controlPair(key: string, action: string): string {
   return `${key.padEnd(12, " ")}${action}`;
+}
+
+function packControlPairs(controls: string[][], width: number): string[] {
+  const lines: string[] = [];
+  let current = "";
+
+  for (const [key, action] of controls) {
+    const pair = `${key} ${action}`;
+    const next = current ? `${current}  ${pair}` : pair;
+
+    if (next.length <= width) {
+      current = next;
+      continue;
+    }
+
+    if (current) {
+      lines.push(current);
+    }
+    current = pair;
+  }
+
+  if (current) {
+    lines.push(current);
+  }
+
+  return lines;
 }
 
 function inlineRight(left: string, right: string, width: number): string {
