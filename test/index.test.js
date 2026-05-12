@@ -12,6 +12,7 @@ import {
   runSetup
 } from "../dist/index.js";
 import { formatDisplayTitle } from "../dist/format.js";
+import { buildDashboard } from "../dist/tui/dashboard.js";
 
 async function withCapturedConsole(fn) {
   const originalLog = console.log;
@@ -37,6 +38,58 @@ async function withCapturedConsole(fn) {
     console.log = originalLog;
     console.error = originalError;
   }
+}
+
+function withTerminalSize(columns, rows, fn) {
+  const columnsDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "columns");
+  const rowsDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "rows");
+
+  Object.defineProperty(process.stdout, "columns", { configurable: true, value: columns });
+  Object.defineProperty(process.stdout, "rows", { configurable: true, value: rows });
+
+  try {
+    return fn();
+  } finally {
+    if (columnsDescriptor) {
+      Object.defineProperty(process.stdout, "columns", columnsDescriptor);
+    } else {
+      delete process.stdout.columns;
+    }
+
+    if (rowsDescriptor) {
+      Object.defineProperty(process.stdout, "rows", rowsDescriptor);
+    } else {
+      delete process.stdout.rows;
+    }
+  }
+}
+
+function dashboardState(overrides = {}) {
+  return {
+    status: "PAUSED",
+    headline: "Claude FM",
+    detail: "Paused. Press space to resume.",
+    runtime: {
+      status: "paused",
+      paused: true,
+      volume: 100,
+      timePos: 3461,
+      duration: 3477,
+      cacheSeconds: null,
+      bufferPercent: null,
+      title: "Claude FM",
+      artist: "",
+      codec: "",
+      sampleRate: null,
+      channels: null
+    },
+    browserEnabled: true,
+    canUseRichPlayer: true,
+    installCommand: "brew install yt-dlp mpv",
+    playerLabel: "mpv",
+    url: CLAUDE_FM_URL,
+    ...overrides
+  };
 }
 
 test("parseArgs defaults to play command and Claude FM URL", () => {
@@ -246,4 +299,14 @@ test("formatDisplayTitle removes Claude FM timestamp noise", () => {
     "Claude FM"
   );
   assert.equal(formatDisplayTitle("Other Stream 2026-05-12 12:26"), "Other Stream");
+});
+
+test("buildDashboard fits a short terminal viewport", () => {
+  const output = withTerminalSize(40, 14, () => buildDashboard(dashboardState()));
+  const lines = output.split("\n");
+
+  assert.equal(lines.length, 14);
+  assert.match(output, /CLAUDE FM/);
+  assert.match(output, /NOW PLAYING/);
+  assert.match(output, /CONTROLS/);
 });
