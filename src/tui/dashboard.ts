@@ -24,6 +24,7 @@ const ARROW_DOWN = "\u001b[B";
 const ENTER_KEYS = new Set(["\r", "\n"]);
 const BACKSPACE_KEYS = new Set(["\u007f", "\b"]);
 const COMMANDS = ["Set YT stream link", "Select output device"] as const;
+const RENDER_INTERVAL_MS = 500;
 
 export function shouldUseDashboard(options: Pick<ParsedArgs, "json" | "ui">): boolean {
   return options.ui && !options.json && Boolean(process.stdout.isTTY && process.stdin.isTTY);
@@ -119,7 +120,8 @@ async function runLegacyDashboard(
   state.status = "PLAYING";
   state.headline = "Claude FM";
   state.detail = "Rich controls require mpv. Starting basic audio mode instead.";
-  render(state);
+  resetRenderFrame();
+  render(state, { clear: true, force: true });
   const code = playWithFfplay(streamUrl, runner);
   state.status = code === 0 ? "STOPPED" : "ERROR";
   state.detail = code === 0 ? "Playback finished." : "Basic audio mode exited with an error.";
@@ -149,8 +151,9 @@ async function holdInteractiveDashboard(
   };
 
   enterScreen();
-  render(state);
-  renderTimer = setInterval(() => render(state), 250);
+  resetRenderFrame();
+  render(state, { clear: true, force: true });
+  renderTimer = setInterval(() => render(state), RENDER_INTERVAL_MS);
 
   return await new Promise<number>((resolve) => {
     const finish = async (code: number) => {
@@ -189,7 +192,7 @@ async function holdInteractiveDashboard(
         listAudioDevices: handleListAudioDevices,
         selectAudioDevice: handleSelectAudioDevice
       })) {
-        render(state);
+        render(state, { force: true });
         return;
       }
 
@@ -239,7 +242,7 @@ async function holdInteractiveDashboard(
       stdin.pause();
     });
 
-    const handleResize = () => render(state);
+    const handleResize = () => render(state, { clear: true, force: true });
     stdout.on("resize", handleResize);
     cleanupTasks.add(() => {
       stdout.off("resize", handleResize);
@@ -263,7 +266,8 @@ async function holdStaticDashboard(state: DashboardState, openBrowser?: () => bo
   const stdin = process.stdin;
   const stdout = process.stdout;
   enterScreen();
-  render(state);
+  resetRenderFrame();
+  render(state, { clear: true, force: true });
 
   if (!stdin.isTTY) {
     exitScreen();
@@ -271,7 +275,7 @@ async function holdStaticDashboard(state: DashboardState, openBrowser?: () => bo
   }
 
   return await new Promise<number>((resolve) => {
-    const handleResize = () => render(state);
+    const handleResize = () => render(state, { clear: true, force: true });
     const handleSetStreamUrl = async (nextUrl: string) => {
       state.url = nextUrl;
       state.error = undefined;
@@ -286,7 +290,7 @@ async function holdStaticDashboard(state: DashboardState, openBrowser?: () => bo
       if (handleCommandPaletteKey(state, key, {
         setStreamUrl: handleSetStreamUrl
       })) {
-        render(state);
+        render(state, { force: true });
         return;
       }
 
@@ -294,7 +298,7 @@ async function holdStaticDashboard(state: DashboardState, openBrowser?: () => bo
         if (!openBrowser()) {
           state.error = "Browser handoff failed.";
         }
-        render(state);
+        render(state, { force: true });
         return;
       }
 
@@ -315,11 +319,40 @@ async function holdStaticDashboard(state: DashboardState, openBrowser?: () => bo
   });
 }
 
-function render(state: DashboardState): void {
-  process.stdout.write(`${THEME.canvas}${THEME.text}`);
+interface RenderOptions {
+  clear?: boolean;
+  force?: boolean;
+}
+
+let lastRenderedFrame = "";
+let lastRenderedRows = 0;
+let lastRenderedColumns = 0;
+
+function resetRenderFrame(): void {
+  lastRenderedFrame = "";
+  lastRenderedRows = 0;
+  lastRenderedColumns = 0;
+}
+
+function render(state: DashboardState, options: RenderOptions = {}): void {
+  const frame = buildDashboard(state);
+  const rows = process.stdout.rows || 24;
+  const columns = process.stdout.columns || 80;
+  const terminalSizeChanged = rows !== lastRenderedRows || columns !== lastRenderedColumns;
+
+  if (!options.force && !terminalSizeChanged && frame === lastRenderedFrame) {
+    return;
+  }
+
   cursorTo(process.stdout, 0, 0);
-  clearScreenDown(process.stdout);
-  process.stdout.write(buildDashboard(state));
+  if (options.clear || terminalSizeChanged) {
+    clearScreenDown(process.stdout);
+  }
+
+  process.stdout.write(`${THEME.canvas}${THEME.text}${frame}`);
+  lastRenderedFrame = frame;
+  lastRenderedRows = rows;
+  lastRenderedColumns = columns;
 }
 
 export function buildDashboard(state: DashboardState): string {
