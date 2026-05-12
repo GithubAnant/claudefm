@@ -90,10 +90,11 @@ export function paintScreen(lines: ScreenLine[], width: number): string {
   const rows = process.stdout.rows || 24;
   const columns = process.stdout.columns || 80;
   const leftPad = Math.max(0, Math.floor((columns - width) / 2));
-  const topPad = Math.max(0, Math.floor((rows - lines.length) / 2));
+  const visibleLines = lines.slice(0, rows);
+  const topPad = Math.max(0, Math.floor((rows - visibleLines.length) / 2));
   const painted = [
     ...Array.from({ length: topPad }, () => paintBlankLine(columns)),
-    ...lines.map((line) => paintLine(line, width, columns, leftPad))
+    ...visibleLines.map((line) => paintLine(line, width, columns, leftPad))
   ];
 
   while (painted.length < rows) {

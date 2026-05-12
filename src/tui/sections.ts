@@ -3,18 +3,23 @@ import { fit, type ScreenLine, wrapText } from "./screen.js";
 import { PANEL_PADDING_X, PANEL_PADDING_Y } from "./theme.js";
 import type { DashboardState } from "./state.js";
 
-export function sectionLines(title: string, lines: string[], width: number): ScreenLine[] {
+interface SectionOptions {
+  paddingY?: number;
+}
+
+export function sectionLines(title: string, lines: string[], width: number, options: SectionOptions = {}): ScreenLine[] {
   const bodyWidth = width - (PANEL_PADDING_X * 2);
+  const paddingY = options.paddingY ?? PANEL_PADDING_Y;
   const paddedLines = [
-    ...Array.from({ length: PANEL_PADDING_Y }, () => ""),
+    ...Array.from({ length: paddingY }, () => ""),
     title.toUpperCase(),
     ...lines.flatMap((line) => (line.length === 0 ? [""] : wrapText(line, bodyWidth))),
-    ...Array.from({ length: PANEL_PADDING_Y }, () => "")
+    ...Array.from({ length: paddingY }, () => "")
   ];
 
   return paddedLines.map((line, index) => ({
     text: `${" ".repeat(PANEL_PADDING_X)}${fit(line, bodyWidth)}${" ".repeat(PANEL_PADDING_X)}`,
-    variant: index === PANEL_PADDING_Y ? "panelTitle" : "panel"
+    variant: index === paddingY ? "panelTitle" : "panel"
   }));
 }
 

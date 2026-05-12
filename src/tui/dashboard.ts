@@ -14,7 +14,7 @@ import {
   sectionLines
 } from "./sections.js";
 import { type DashboardState, EMPTY_PLAYER } from "./state.js";
-import { enterScreen, exitScreen, PANEL_PADDING_X, SECTION_GAP, THEME } from "./theme.js";
+import { enterScreen, exitScreen, PANEL_PADDING_X, THEME } from "./theme.js";
 
 export function shouldUseDashboard(options: Pick<ParsedArgs, "json" | "ui">): boolean {
   return options.ui && !options.json && Boolean(process.stdout.isTTY && process.stdin.isTTY);
@@ -275,14 +275,43 @@ function render(state: DashboardState): void {
   process.stdout.write(buildDashboard(state));
 }
 
-function buildDashboard(state: DashboardState): string {
+export function buildDashboard(state: DashboardState): string {
   const columns = process.stdout.columns || 80;
-  const width = Math.max(72, Math.min(100, columns - 8));
+  const rows = process.stdout.rows || 24;
+  const horizontalMargin = columns >= 80 ? 8 : 0;
+  const width = Math.max(1, Math.min(100, columns - horizontalMargin));
+  const lines = buildDashboardLines(state, width, rows);
+
+  return paintScreen(lines, width);
+}
+
+type LogoMode = "full" | "compact" | "none";
+
+interface LayoutCandidate {
+  logo: LogoMode;
+  gap: number;
+  panelPaddingY: number;
+}
+
+function buildDashboardLines(state: DashboardState, width: number, rows: number): ScreenLine[] {
+  const candidates: LayoutCandidate[] = [
+    { logo: "full", gap: 2, panelPaddingY: 2 },
+    { logo: "full", gap: 1, panelPaddingY: 1 },
+    { logo: "compact", gap: 1, panelPaddingY: 1 },
+    { logo: "compact", gap: 1, panelPaddingY: 0 },
+    { logo: "compact", gap: 0, panelPaddingY: 0 },
+    { logo: "none", gap: 0, panelPaddingY: 0 }
+  ];
+  const layouts = candidates.map((candidate) => buildDashboardCandidate(state, width, candidate));
+  return layouts.find((layout) => layout.length <= rows) ?? layouts[layouts.length - 1];
+}
+
+function buildDashboardCandidate(state: DashboardState, width: number, candidate: LayoutCandidate): ScreenLine[] {
   const progressDuration = state.runtime.duration ?? 1;
   const progressValue = state.runtime.timePos ?? 0;
   const progressClock = `${formatClock(progressValue)} / ${formatClock(state.runtime.duration)}`;
   const playerBodyWidth = width - (PANEL_PADDING_X * 2);
-  const progressWidth = Math.max(12, playerBodyWidth - progressClock.length - 2);
+  const progressWidth = Math.max(4, playerBodyWidth - progressClock.length - 2);
   const stateLine = `${state.status.toLowerCase()}  volume ${state.runtime.volume}%`;
   const errorLines = state.error ? wrapText(state.error, playerBodyWidth - 6).slice(0, 2) : [];
   const artistLine = formatArtistLine(state.runtime.artist);
@@ -292,20 +321,26 @@ function buildDashboard(state: DashboardState): string {
     `${renderBar(progressValue, progressDuration, progressWidth)}  ${progressClock}`,
     state.error ? `error ${errorLines.join(" ")}` : artistLine
   ].filter((line, index) => index < 3 || line.length > 0);
-  const player = sectionLines("Now Playing", playerLines, width);
-  const controls = sectionLines("Controls", controlLines(state), width);
-  const lines: ScreenLine[] = [
-    ...logoLines(width),
-    ...blankLines(SECTION_GAP),
+  const player = sectionLines("Now Playing", playerLines, width, { paddingY: candidate.panelPaddingY });
+  const controls = sectionLines("Controls", controlLines(state), width, { paddingY: candidate.panelPaddingY });
+  return [
+    ...logoLines(width, candidate.logo),
+    ...blankLines(candidate.gap),
     ...player,
-    ...blankLines(SECTION_GAP),
+    ...blankLines(candidate.gap),
     ...controls
   ];
-
-  return paintScreen(lines, width);
 }
 
-function logoLines(width: number): ScreenLine[] {
+function logoLines(width: number, mode: LogoMode): ScreenLine[] {
+  if (mode === "none") {
+    return [];
+  }
+
+  if (mode === "compact") {
+    return [{ text: centerText("CLAUDE FM", width), variant: "logo" as const }];
+  }
+
   const logo = [
     "█▀▀ █  ▄▀▀▄ █ █ █▀▄ █▀▀  █▀▀ █▄▀▄█",
     "█   █  █▀▀█ █ █ █ █ █▀   █▀  █ ▀ █",
