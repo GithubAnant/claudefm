@@ -323,6 +323,7 @@ test("buildDashboard fits a short terminal viewport", () => {
   assert.match(output, /CONTROLS/);
   assert.ok(plainLines.some((line) => line.includes("NOW PLAYING") && line.includes("paused  volume 100%")));
   assert.ok(plainLines.some((line) => line.trim() === "Claude FM"));
-  assert.ok(plainLines.some((line) => line.includes("+/- volume    o open youtube  q quit")));
+  assert.ok(plainLines.some((line) => line.includes("space pause/resume") && line.includes("left/right seek")));
+  assert.ok(plainLines.some((line) => line.includes("o open youtube  q quit")));
   assert.ok(plainLines.findIndex((line) => line.trim().length > 0) <= 1);
 });

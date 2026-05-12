@@ -95,7 +95,7 @@ export function controlLines(state: DashboardState, width = Number.POSITIVE_INFI
   }
 
   const playbackControls = [
-    ["space", "pause / resume"],
+    ["space", "pause/resume"],
     ["left/right", "seek"],
     ["+/-", "volume"]
   ];
@@ -104,69 +104,22 @@ export function controlLines(state: DashboardState, width = Number.POSITIVE_INFI
     ["q", "quit"]
   ];
 
-  if (width < 64) {
-    const firstLine = `${compactControlPair("space", "pause/resume")}  ${compactControlPair("left/right", "seek")}`;
-    const secondLine = state.browserEnabled
-      ? `${compactControlPair("+/-", "volume")}    ${compactControlPair("o", "open youtube")}  ${compactControlPair("q", "quit")}`
-      : `${compactControlPair("+/-", "volume")}    ${compactControlPair("q", "quit")}`;
-
-    if (firstLine.length <= width && secondLine.length <= width) {
-      return [firstLine, secondLine];
-    }
-
-    return packControlGroups([
-      [
-        ["space", "pause/resume"],
-        ["left/right", "seek"],
-        ["+/-", "volume"]
-      ],
-      [
-        ...(state.browserEnabled ? [["o", "open youtube"]] : []),
-        ["q", "quit"]
-      ]
-    ], width);
-  }
-
-  const playbackLine = playbackControls.map(([key, action]) => controlPair(key, action)).join("    ");
-  const appLine = appControls.map(([key, action]) => controlPair(key, action)).join("    ");
+  const playbackLine = joinCompactControls(playbackControls, 3);
+  const appLine = joinCompactControls(appControls, 3);
   const groupedLine = `${playbackLine}        ${appLine}`;
 
   if (groupedLine.length <= width) {
     return [groupedLine];
   }
 
-  return [playbackLine, appLine];
-}
-
-function controlPair(key: string, action: string): string {
-  return `${key.padEnd(12, " ")}${action}`;
-}
-
-function compactControlPair(key: string, action: string): string {
-  return `${key} ${action}`;
-}
-
-function packControlGroups(groups: string[][][], width: number): string[] {
-  const lines: string[] = [];
-
-  for (const group of groups) {
-    const groupLines = packControlPairs(group, width);
-    const firstLine = groupLines[0];
-    const lastLine = lines[lines.length - 1];
-
-    if (firstLine && lastLine) {
-      const groupedLine = `${lastLine}    ${firstLine}`;
-      if (groupedLine.length <= width) {
-        lines[lines.length - 1] = groupedLine;
-        lines.push(...groupLines.slice(1));
-        continue;
-      }
-    }
-
-    lines.push(...groupLines);
+  if (playbackLine.length <= width && appLine.length <= width) {
+    return [playbackLine, appLine];
   }
 
-  return lines;
+  return [
+    ...packControlPairs(playbackControls, width),
+    ...packControlPairs(appControls, width)
+  ];
 }
 
 function packControlPairs(controls: string[][], width: number): string[] {
@@ -193,6 +146,10 @@ function packControlPairs(controls: string[][], width: number): string[] {
   }
 
   return lines;
+}
+
+function joinCompactControls(controls: string[][], gap: number): string {
+  return controls.map(([key, action]) => `${key} ${action}`).join(" ".repeat(gap));
 }
 
 function inlineRight(left: string, right: string, width: number): string {
