@@ -93,6 +93,10 @@ function dashboardState(overrides = {}) {
   };
 }
 
+function stripAnsi(text) {
+  return text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
+}
+
 test("parseArgs defaults to play command and Claude FM URL", () => {
   assert.deepEqual(parseArgs([]), {
     command: "play",
@@ -311,9 +315,11 @@ test("formatArtistLine hides generic Claude artist metadata", () => {
 test("buildDashboard fits a short terminal viewport", () => {
   const output = withTerminalSize(40, 14, () => buildDashboard(dashboardState()));
   const lines = output.split("\n");
+  const plainLines = stripAnsi(output).split("\n");
 
   assert.equal(lines.length, 14);
   assert.match(output, /CLAUDE FM/);
   assert.match(output, /NOW PLAYING/);
   assert.match(output, /CONTROLS/);
+  assert.ok(plainLines.some((line) => line.includes("Claude FM") && line.includes("paused  volume 100%")));
 });

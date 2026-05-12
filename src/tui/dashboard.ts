@@ -316,11 +316,10 @@ function buildDashboardCandidate(state: DashboardState, width: number, candidate
   const errorLines = state.error ? wrapText(state.error, playerBodyWidth - 6).slice(0, 2) : [];
   const artistLine = formatArtistLine(state.runtime.artist);
   const playerLines = [
-    state.headline,
-    stateLine,
+    inlineRight(state.headline, stateLine, playerBodyWidth),
     `${renderBar(progressValue, progressDuration, progressWidth)}  ${progressClock}`,
     state.error ? `error ${errorLines.join(" ")}` : artistLine
-  ].filter((line, index) => index < 3 || line.length > 0);
+  ].filter((line, index) => index < 2 || line.length > 0);
   const player = sectionLines("Now Playing", playerLines, width, { paddingY: candidate.panelPaddingY });
   const controls = sectionLines("Controls", controlLines(state), width, { paddingY: candidate.panelPaddingY });
   return [
@@ -330,6 +329,24 @@ function buildDashboardCandidate(state: DashboardState, width: number, candidate
     ...blankLines(candidate.gap),
     ...controls
   ];
+}
+
+function inlineRight(left: string, right: string, width: number): string {
+  if (width <= 0) {
+    return "";
+  }
+
+  if (right.length >= width) {
+    return right.slice(0, width);
+  }
+
+  const gap = 2;
+  const leftWidth = Math.max(0, width - right.length - gap);
+  const fittedLeft = left.length > leftWidth
+    ? `${left.slice(0, Math.max(0, leftWidth - 3))}...`
+    : left;
+  const spacing = Math.max(gap, width - fittedLeft.length - right.length);
+  return `${fittedLeft}${" ".repeat(spacing)}${right}`;
 }
 
 function logoLines(width: number, mode: LogoMode): ScreenLine[] {
