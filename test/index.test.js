@@ -12,6 +12,8 @@ import {
   runSetup
 } from "../dist/index.js";
 import { formatDisplayTitle } from "../dist/format.js";
+import { buildDashboard } from "../dist/tui/dashboard.js";
+import { formatArtistLine } from "../dist/tui/sections.js";
 
 async function withCapturedConsole(fn) {
   const originalLog = console.log;
@@ -37,6 +39,62 @@ async function withCapturedConsole(fn) {
     console.log = originalLog;
     console.error = originalError;
   }
+}
+
+function withTerminalSize(columns, rows, fn) {
+  const columnsDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "columns");
+  const rowsDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "rows");
+
+  Object.defineProperty(process.stdout, "columns", { configurable: true, value: columns });
+  Object.defineProperty(process.stdout, "rows", { configurable: true, value: rows });
+
+  try {
+    return fn();
+  } finally {
+    if (columnsDescriptor) {
+      Object.defineProperty(process.stdout, "columns", columnsDescriptor);
+    } else {
+      delete process.stdout.columns;
+    }
+
+    if (rowsDescriptor) {
+      Object.defineProperty(process.stdout, "rows", rowsDescriptor);
+    } else {
+      delete process.stdout.rows;
+    }
+  }
+}
+
+function dashboardState(overrides = {}) {
+  return {
+    status: "PAUSED",
+    headline: "Claude FM",
+    detail: "Paused. Press space to resume.",
+    runtime: {
+      status: "paused",
+      paused: true,
+      volume: 100,
+      timePos: 3461,
+      duration: 3477,
+      cacheSeconds: null,
+      bufferPercent: null,
+      title: "Claude FM",
+      artist: "",
+      codec: "",
+      sampleRate: null,
+      channels: null
+    },
+    browserEnabled: true,
+    canUseRichPlayer: true,
+    installCommand: "brew install yt-dlp mpv",
+    playerLabel: "mpv",
+    url: CLAUDE_FM_URL,
+    ...overrides
+  };
+}
+
+function stripAnsi(text) {
+  return text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
 }
 
 test("parseArgs defaults to play command and Claude FM URL", () => {
@@ -243,7 +301,62 @@ test("run reports unknown args", async () => {
 test("formatDisplayTitle removes Claude FM timestamp noise", () => {
   assert.equal(
     formatDisplayTitle("Claude FM music for thinking and building 2026-05-12 12:26"),
-    "Claude FM"
+    "Claude FM music for thinking and building"
   );
   assert.equal(formatDisplayTitle("Other Stream 2026-05-12 12:26"), "Other Stream");
+});
+
+test("formatArtistLine hides generic Claude artist metadata", () => {
+  assert.equal(formatArtistLine("Claude"), "");
+  assert.equal(formatArtistLine("Claude FM"), "");
+  assert.equal(formatArtistLine("Real Artist"), "artist Real Artist");
+});
+
+test("buildDashboard fits a short terminal viewport", () => {
+  const output = withTerminalSize(40, 14, () => buildDashboard(dashboardState()));
+  const lines = output.split("\n");
+  const plainLines = stripAnsi(output).split("\n");
+
+  assert.equal(lines.length, 14);
+  assert.match(output, /█▀▀/);
+  assert.match(output, /NOW PLAYING/);
+  assert.match(output, /CONTROLS/);
+  assert.ok(plainLines.some((line) => line.includes("NOW PLAYING") && line.includes("paused | volume 100%")));
+  assert.ok(plainLines.some((line) => line.trim() === "Claude FM"));
+  assert.ok(plainLines.some((line) => line.includes("space pause/resume") && line.includes("left/right seek")));
+  assert.ok(plainLines.some((line) => line.includes("o open youtube") && line.includes("ctrl+p settings")));
+  assert.ok(plainLines.some((line) => line.includes("q quit")));
+  assert.ok(plainLines.findIndex((line) => line.trim().length > 0) <= 1);
+});
+
+test("buildDashboard renders command palette", () => {
+  const output = withTerminalSize(80, 24, () => buildDashboard(dashboardState({
+    commandPalette: {
+      mode: "menu",
+      input: CLAUDE_FM_URL
+    }
+  })));
+  const plainLines = stripAnsi(output).split("\n");
+
+  assert.ok(plainLines.some((line) => line.includes("Commands") && line.includes("esc")));
+  assert.ok(plainLines.some((line) => line.includes("Set YT stream link") && line.includes("enter")));
+  assert.ok(plainLines.some((line) => line.includes("Select output device") && line.includes("enter")));
+});
+
+test("buildDashboard renders output device picker", () => {
+  const output = withTerminalSize(80, 24, () => buildDashboard(dashboardState({
+    commandPalette: {
+      mode: "devices",
+      input: CLAUDE_FM_URL,
+      selectedIndex: 1,
+      devices: [
+        { name: "auto", description: "Auto" },
+        { name: "coreaudio/default", description: "MacBook Speakers" }
+      ]
+    }
+  })));
+  const plainLines = stripAnsi(output).split("\n");
+
+  assert.ok(plainLines.some((line) => line.includes("Select output device") && line.includes("esc")));
+  assert.ok(plainLines.some((line) => line.includes("> MacBook Speakers") && line.includes("enter")));
 });

@@ -4,6 +4,10 @@ import { RESET, THEME } from "./theme.js";
 export type LineVariant =
   | "blank"
   | "logo"
+  | "modal"
+  | "modalTitle"
+  | "modalHot"
+  | "modalMuted"
   | "panel"
   | "panelTitle"
   | "columns"
@@ -15,6 +19,8 @@ export type LineVariant =
 export interface ScreenLine {
   text: string;
   variant: LineVariant;
+  styledText?: string;
+  boxWidth?: number;
   gap?: number;
   leftWidth?: number;
   rightText?: string;
@@ -90,10 +96,11 @@ export function paintScreen(lines: ScreenLine[], width: number): string {
   const rows = process.stdout.rows || 24;
   const columns = process.stdout.columns || 80;
   const leftPad = Math.max(0, Math.floor((columns - width) / 2));
-  const topPad = Math.max(0, Math.floor((rows - lines.length) / 2));
+  const visibleLines = lines.slice(0, rows);
+  const topPad = Math.max(0, Math.floor((rows - visibleLines.length) / 2));
   const painted = [
     ...Array.from({ length: topPad }, () => paintBlankLine(columns)),
-    ...lines.map((line) => paintLine(line, width, columns, leftPad))
+    ...visibleLines.map((line) => paintLine(line, width, columns, leftPad))
   ];
 
   while (painted.length < rows) {
@@ -133,9 +140,29 @@ export function paintLine(line: ScreenLine, width: number, columns: number, left
     ].join("");
   }
 
+  if (
+    line.variant === "modal" ||
+    line.variant === "modalTitle" ||
+    line.variant === "modalHot" ||
+    line.variant === "modalMuted"
+  ) {
+    const boxWidth = Math.min(width, line.boxWidth ?? line.text.length);
+    const modalLeftPad = leftPad + Math.max(0, Math.floor((width - boxWidth) / 2));
+    const modalRightPad = Math.max(0, columns - modalLeftPad - boxWidth);
+    const foreground = line.variant === "modalTitle"
+      ? THEME.text
+      : line.variant === "modalHot"
+        ? THEME.accent
+        : line.variant === "modalMuted"
+          ? THEME.muted
+          : THEME.text;
+
+    return `${THEME.canvas}${" ".repeat(modalLeftPad)}${THEME.panelAlt}${foreground}${fit(line.text, boxWidth)}${THEME.canvas}${" ".repeat(modalRightPad)}${RESET}`;
+  }
+
   if (line.variant === "panel" || line.variant === "panelTitle") {
     const foreground = panelForeground(line.text, line.variant === "panelTitle");
-    return `${THEME.canvas}${" ".repeat(leftPad)}${THEME.panel}${foreground}${padded}${THEME.canvas}${" ".repeat(rightPad)}${RESET}`;
+    return `${THEME.canvas}${" ".repeat(leftPad)}${THEME.panel}${foreground}${line.styledText ?? padded}${THEME.canvas}${" ".repeat(rightPad)}${RESET}`;
   }
 
   if (line.variant === "blank" || line.text.trim().length === 0) {

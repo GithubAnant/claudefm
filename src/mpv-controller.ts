@@ -16,6 +16,11 @@ interface MpvMessage {
   name?: string;
 }
 
+export interface MpvAudioDevice {
+  name: string;
+  description: string;
+}
+
 export class MpvController extends EventEmitter {
   private static readonly SOCKET_WAIT_MS = 20000;
   private child: ChildProcess | null = null;
@@ -105,6 +110,46 @@ export class MpvController extends EventEmitter {
   async changeVolume(delta: number): Promise<void> {
     const nextVolume = Math.max(0, Math.min(130, this.state.volume + delta));
     await this.send(["set_property", "volume", nextVolume]);
+  }
+
+  async loadUrl(streamUrl: string): Promise<void> {
+    await this.send(["loadfile", streamUrl, "replace"]);
+    this.state = {
+      ...createInitialRuntimeState(),
+      status: "starting",
+      volume: this.state.volume,
+      title: "Loading stream"
+    };
+    this.emitState();
+  }
+
+  async listAudioDevices(): Promise<MpvAudioDevice[]> {
+    const payload = await this.send(["get_property", "audio-device-list"]);
+    if (!Array.isArray(payload)) {
+      return [];
+    }
+
+    return payload.flatMap((item) => {
+      if (!item || typeof item !== "object") {
+        return [];
+      }
+
+      const record = item as Record<string, unknown>;
+      if (typeof record.name !== "string") {
+        return [];
+      }
+
+      return [{
+        name: record.name,
+        description: typeof record.description === "string" && record.description.length > 0
+          ? record.description
+          : record.name
+      }];
+    });
+  }
+
+  async selectAudioDevice(name: string): Promise<void> {
+    await this.send(["set_property", "audio-device", name]);
   }
 
   async stop(): Promise<void> {

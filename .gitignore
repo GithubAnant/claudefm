@@ -5,3 +5,4 @@ dist/
 *.tgz
 npm-debug.log*
 AGENTS.md
+CLAUDEFM.md

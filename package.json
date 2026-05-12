@@ -12,14 +12,14 @@
   },
   "types": "./dist/index.d.ts",
   "files": [
-    "assets",
     "bin",
     "dist",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc -p tsconfig.json",
     "prepack": "npm run build",
     "test": "npm run build && node --test test/index.test.js"
   },
