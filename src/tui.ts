@@ -1,6 +1,6 @@
 import process from "node:process";
 import { clearScreenDown, cursorTo } from "node:readline";
-import { formatClock, renderBar, summarizeRuntime } from "./format.js";
+import { formatClock, formatDisplayTitle, renderBar } from "./format.js";
 import { MpvController } from "./mpv-controller.js";
 import { inspectEnvironment } from "./environment.js";
 import { CLAUDE_FM_URL } from "./constants.js";
@@ -16,6 +16,7 @@ interface DashboardState {
   browserEnabled: boolean;
   canUseRichPlayer: boolean;
   installCommand?: string;
+  playerLabel: string;
   url: string;
 }
 
@@ -86,6 +87,7 @@ export async function runDashboard(
     browserEnabled,
     canUseRichPlayer: environment.commands.mpv,
     installCommand: environment.installPlan.command,
+    playerLabel: environment.preferredPlayer ?? (browserEnabled ? "browser" : "none"),
     url: options.url
   };
 
@@ -99,8 +101,8 @@ export async function runDashboard(
 
   if (browserEnabled && openBrowser()) {
     state.status = "BROWSER";
-    state.headline = "Claude FM opened in your browser";
-    state.detail = "mpv is missing, so the stream was handed off to YouTube.";
+    state.headline = "Claude FM";
+    state.detail = "Opened in YouTube because terminal playback is missing.";
     return await holdStaticDashboard(state, browserEnabled ? openBrowser : undefined);
   }
 
@@ -123,7 +125,7 @@ async function runRichDashboard(
     controller.on("state", (nextState: MpvRuntimeState) => {
       state.runtime = nextState;
       state.status = nextState.status.toUpperCase();
-      state.headline = nextState.title || "Claude FM";
+      state.headline = formatDisplayTitle(nextState.title);
       state.detail = describeRuntime(nextState);
     });
 
@@ -135,12 +137,15 @@ async function runRichDashboard(
     await controller.start(streamUrl);
     state.runtime = controller.snapshot;
     state.status = state.runtime.status.toUpperCase();
-    state.headline = state.runtime.title || "Claude FM";
+    state.headline = formatDisplayTitle(state.runtime.title);
     state.detail = describeRuntime(state.runtime);
   } catch (error) {
     state.status = "ERROR";
-    state.error = error instanceof Error ? error.message : String(error);
-    state.detail = "mpv failed to start the live stream.";
+    state.runtime = { ...state.runtime, status: "idle" };
+    state.error = formatPlaybackError(error);
+    state.detail = openBrowser
+      ? "Could not start mpv. Press o to open YouTube."
+      : "Could not start mpv. Run claudefm doctor.";
     return await holdStaticDashboard(state, openBrowser);
   }
 
@@ -340,43 +345,36 @@ function buildDashboard(state: DashboardState): string {
   const progressClock = `${formatClock(progressValue)} / ${formatClock(state.runtime.duration)}`;
   const nowPlayingBodyWidth = leftWidth - (PANEL_PADDING_X * 2);
   const progressWidth = Math.max(12, nowPlayingBodyWidth - progressClock.length - 2);
-  const runtime = summarizeRuntime(state.runtime);
+  const showSetup = shouldShowSetup(state);
   const detailLines = wrapText(state.detail, nowPlayingBodyWidth).slice(0, 2);
   const errorLines = state.error ? wrapText(state.error, nowPlayingBodyWidth - 6).slice(0, 2) : [];
-  const hero = sectionLines("Claude FM", [
-    state.status,
-    `source ${state.url || CLAUDE_FM_URL}`
-  ], width);
-  const nowPlaying = sectionLines("Now Playing", [
+  const artistLine = formatArtistLine(state.runtime.artist);
+  const nowPlayingLines = [
     state.headline,
     ...detailLines,
     "",
     `${renderBar(progressValue, progressDuration, progressWidth)}  ${progressClock}`,
-    state.error ? `error ${errorLines.join(" ")}` : `artist ${state.runtime.artist || "--"}`
-  ], leftWidth);
-  const stats = sectionLines("Runtime", [
-    runtime[0] ?? "state --",
-    runtime[1] ?? "volume --",
-    runtime[2] ?? "cache --",
-    runtime[3] ?? "codec --",
-    `setup ${state.installCommand || "none"}`,
-    state.browserEnabled ? "browser yes" : "browser no"
-  ], rightWidth);
-  const controls = sectionLines("Controls", [
-    state.canUseRichPlayer
-      ? "space pause/resume   left/right seek   +/- volume"
-      : "rich transport controls need mpv",
-    state.browserEnabled ? "o youtube     q quit" : "q quit"
+    state.error ? `error ${errorLines.join(" ")}` : artistLine
+  ].filter((line, index) => index < 4 || line.length > 0);
+  const hero = sectionLines("Claude FM", [
+    state.status,
+    `source ${state.url || CLAUDE_FM_URL}`
   ], width);
+  const nowPlaying = sectionLines("Now Playing", nowPlayingLines, leftWidth);
+  const sidePanel = showSetup ? sectionLines("Setup", setupLines(state), rightWidth) : sectionLines("Status", [
+    state.status.toLowerCase(),
+    `volume ${state.runtime.volume}%`,
+    `player ${state.playerLabel}`
+  ], rightWidth);
+  const controls = sectionLines("Controls", controlLines(state), width);
   const lines: ScreenLine[] = [
     ...logoLines(width),
     ...blankLines(SECTION_GAP),
     ...hero,
     ...blankLines(SECTION_GAP),
-    ...joinLineColumns(nowPlaying, stats, columnGap),
+    ...joinLineColumns(nowPlaying, sidePanel, columnGap),
     ...blankLines(SECTION_GAP),
-    ...controls,
-    ...hintLines(state, width)
+    ...controls
   ];
 
   return paintScreen(lines, width);
@@ -438,14 +436,18 @@ function exitScreen(): void {
 }
 
 function logoLines(width: number): ScreenLine[] {
+  // const logo = [
+  //   ["████ █    ████ █  █ ███  ████", " ████ █   █"],
+  //   ["█    █    █  █ █  █ █  █ █   ", " █    ██ ██"],
+  //   ["█    █    ████ █  █ █  █ ███ ", " ███  █ █ █"],
+  //   ["█    █    █  █ █  █ █  █ █   ", " █    █   █"],
+  //   ["████ ████ █  █ ████ ███  ████", " █    █   █"]
+  // ];
   const logo = [
-    ["████ █    ████ █  █ ███  ████", " ████ █   █"],
-    ["█    █    █  █ █  █ █  █ █   ", " █    ██ ██"],
-    ["█    █    ████ █  █ █  █ ███ ", " ███  █ █ █"],
-    ["█    █    █  █ █  █ █  █ █   ", " █    █   █"],
-    ["████ ████ █  █ ████ ███  ████", " █    █   █"]
+    ["█▀▀ █  ▄▀▀▄ █ █ █▀▄ █▀▀", "  █▀▀ █▄▀▄█"],
+    ["█   █  █▀▀█ █ █ █ █ █▀ ", "  █▀  █ ▀ █"],
+    ["▀▀▀ ▀▀ ▀  ▀ ▀▀▀ ▀▀  ▀▀▀", "  ▀   ▀   ▀"],
   ];
-
   return [
     ...logo.map(([main, fm]) => centerLogoLine(main, fm, width)),
     { text: "", variant: "blank" as const },
@@ -480,15 +482,6 @@ function sectionLines(title: string, lines: string[], width: number): ScreenLine
     text: `${" ".repeat(PANEL_PADDING_X)}${fit(line, bodyWidth)}${" ".repeat(PANEL_PADDING_X)}`,
     variant: index === PANEL_PADDING_Y ? "panelTitle" : "panel"
   }));
-}
-
-function hintLines(state: DashboardState, width: number): ScreenLine[] {
-  const setup = state.installCommand ? `setup ${state.installCommand}` : "ready";
-
-  return [
-    ...blankLines(SECTION_GAP),
-    { text: centerText(setup, width), variant: "muted" }
-  ];
 }
 
 function blankLine(): ScreenLine {
@@ -631,20 +624,90 @@ function panelForeground(text: string, isTitle: boolean): string {
     return THEME.muted;
   }
 
+  if (trimmed.startsWith("$ ")) {
+    return THEME.accent;
+  }
+
   return isTitle ? THEME.accent : THEME.text;
+}
+
+function shouldShowSetup(state: DashboardState): boolean {
+  return !state.canUseRichPlayer;
+}
+
+function setupLines(state: DashboardState): string[] {
+  if (!state.installCommand) {
+    return [
+      "install yt-dlp and mpv",
+      "then run claudefm doctor"
+    ];
+  }
+
+  return [
+    "run",
+    `$ ${state.installCommand}`,
+    setupHelpText(state)
+  ];
+}
+
+function setupHelpText(state: DashboardState): string {
+  if (state.playerLabel === "ffplay") {
+    return "enables rich controls";
+  }
+
+  return "enables terminal playback";
+}
+
+function formatArtistLine(artist: string): string {
+  const normalized = artist.trim();
+  if (!normalized || /^claude\s+fm$/i.test(normalized)) {
+    return "";
+  }
+
+  return `artist ${normalized}`;
+}
+
+function controlLines(state: DashboardState): string[] {
+  if (state.status === "ERROR") {
+    return [
+      state.browserEnabled ? "o      open youtube       q  quit" : "q      quit"
+    ];
+  }
+
+  if (!state.canUseRichPlayer) {
+    return [
+      "rich controls need mpv",
+      state.browserEnabled ? "o      open youtube       q  quit" : "q      quit"
+    ];
+  }
+
+  return [
+    "space  pause / resume     left/right  seek",
+    state.browserEnabled ? "+/-    volume             o  open youtube" : "+/-    volume",
+    "q      quit"
+  ];
+}
+
+function formatPlaybackError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("IPC socket") || message.includes("mpv exited")) {
+    return "mpv exited before playback was ready";
+  }
+
+  return message;
 }
 
 function describeRuntime(runtime: MpvRuntimeState): string {
   if (runtime.status === "buffering") {
-    return `Buffering the stream${runtime.cacheSeconds ? ` with ${runtime.cacheSeconds.toFixed(1)}s cached` : ""}.`;
+    return "Buffering the stream.";
   }
 
   if (runtime.status === "paused") {
-    return "Playback paused. Hit space to resume.";
+    return "Paused. Press space to resume.";
   }
 
   if (runtime.status === "playing") {
-    return "Live stream is playing. Use the transport controls below.";
+    return "Playing. Controls are below.";
   }
 
   if (runtime.status === "starting") {

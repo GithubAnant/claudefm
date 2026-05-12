@@ -28,6 +28,23 @@ export function renderBar(value: number, max: number, width: number): string {
   return `${"█".repeat(filled)}${"·".repeat(Math.max(0, width - filled))}`;
 }
 
+export function formatDisplayTitle(title: string): string {
+  const normalized = title.trim().replace(/\s+/g, " ");
+  if (!normalized) {
+    return "Claude FM";
+  }
+
+  const withoutTimestamp = normalized
+    .replace(/\s+\d{4}-\d{2}-\d{2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?\s*$/, "")
+    .trim();
+
+  if (/^claude\s+fm\b/i.test(withoutTimestamp)) {
+    return "Claude FM";
+  }
+
+  return withoutTimestamp || "Claude FM";
+}
+
 export function summarizeRuntime(state: MpvRuntimeState): string[] {
   const technical = [
     state.codec || "",
