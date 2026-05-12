@@ -372,6 +372,7 @@ function logoLines(width: number, mode: LogoMode): ScreenLine[] {
   return [
     ...logo.map((line) => ({ text: centerText(line, width), variant: "logo" as const })),
     { text: "", variant: "blank" as const },
-    { text: centerText("music for thinking and building", width), variant: "muted" as const }
+    { text: centerText("music for thinking and building", width), variant: "muted" as const },
+    { text: "", variant: "blank" as const }
   ];
 }
