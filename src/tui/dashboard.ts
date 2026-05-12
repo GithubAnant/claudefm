@@ -2,7 +2,7 @@ import process from "node:process";
 import { clearScreenDown, cursorTo } from "node:readline";
 import { inspectEnvironment } from "../environment.js";
 import { formatClock, formatDisplayTitle, renderBar } from "../format.js";
-import { MpvController } from "../mpv-controller.js";
+import { MpvController, type MpvAudioDevice } from "../mpv-controller.js";
 import { openInBrowser, playWithFfplay } from "../player.js";
 import type { CommandRunner, MpvRuntimeState, ParsedArgs, Platform } from "../types.js";
 import { blankLines, centerText, paintScreen, type ScreenLine, wrapText } from "./screen.js";
@@ -14,8 +14,16 @@ import {
   sectionLines,
   styleControlLine
 } from "./sections.js";
-import { type DashboardState, EMPTY_PLAYER } from "./state.js";
+import { type CommandPaletteState, type DashboardState, EMPTY_PLAYER } from "./state.js";
 import { enterScreen, exitScreen, PANEL_PADDING_X, THEME } from "./theme.js";
+
+const CTRL_P = "\u0010";
+const ESC = "\u001b";
+const ARROW_UP = "\u001b[A";
+const ARROW_DOWN = "\u001b[B";
+const ENTER_KEYS = new Set(["\r", "\n"]);
+const BACKSPACE_KEYS = new Set(["\u007f", "\b"]);
+const COMMANDS = ["Set YT stream link", "Select output device"] as const;
 
 export function shouldUseDashboard(options: Pick<ParsedArgs, "json" | "ui">): boolean {
   return options.ui && !options.json && Boolean(process.stdout.isTTY && process.stdin.isTTY);
@@ -28,7 +36,6 @@ export async function runDashboard(
 ): Promise<number> {
   const environment = inspectEnvironment(runner, platform);
   const browserEnabled = options.browser && environment.commands.open;
-  const openBrowser = () => openInBrowser(options.url, runner, platform) === 0;
   const state: DashboardState = {
     status: "STARTING",
     headline: "Claude FM",
@@ -40,6 +47,7 @@ export async function runDashboard(
     playerLabel: environment.preferredPlayer ?? (browserEnabled ? "browser" : "none"),
     url: options.url
   };
+  const openBrowser = () => openInBrowser(state.url, runner, platform) === 0;
 
   if (environment.commands.mpv) {
     return await runRichDashboard(state, options.url, browserEnabled ? openBrowser : undefined);
@@ -159,8 +167,31 @@ async function holdInteractiveDashboard(
       state.error = error instanceof Error ? error.message : String(error);
     };
 
+    const handleSetStreamUrl = async (nextUrl: string) => {
+      state.url = nextUrl;
+      state.error = undefined;
+      state.status = "STARTING";
+      state.headline = "Loading stream";
+      state.detail = "Switching stream link.";
+      await controller.loadUrl(nextUrl);
+    };
+    const handleListAudioDevices = () => controller.listAudioDevices();
+    const handleSelectAudioDevice = async (device: MpvAudioDevice) => {
+      await controller.selectAudioDevice(device.name);
+      state.detail = `Output device set to ${device.description}.`;
+    };
+
     const handleKey = (chunk: Buffer) => {
       const key = chunk.toString("utf8");
+
+      if (handleCommandPaletteKey(state, key, {
+        setStreamUrl: handleSetStreamUrl,
+        listAudioDevices: handleListAudioDevices,
+        selectAudioDevice: handleSelectAudioDevice
+      })) {
+        render(state);
+        return;
+      }
 
       if (key === "q" || key === "Q" || key === "\u0003") {
         void finish(0);
@@ -241,9 +272,24 @@ async function holdStaticDashboard(state: DashboardState, openBrowser?: () => bo
 
   return await new Promise<number>((resolve) => {
     const handleResize = () => render(state);
+    const handleSetStreamUrl = async (nextUrl: string) => {
+      state.url = nextUrl;
+      state.error = undefined;
+      state.detail = openBrowser
+        ? "Stream link updated. Press o to open YouTube."
+        : "Stream link updated.";
+    };
 
     const handleKey = (chunk: Buffer) => {
       const key = chunk.toString("utf8");
+
+      if (handleCommandPaletteKey(state, key, {
+        setStreamUrl: handleSetStreamUrl
+      })) {
+        render(state);
+        return;
+      }
+
       if ((key === "o" || key === "O") && openBrowser) {
         if (!openBrowser()) {
           state.error = "Browser handoff failed.";
@@ -297,7 +343,13 @@ interface LayoutCandidate {
 function buildDashboardLines(state: DashboardState, width: number, rows: number): ScreenLine[] {
   const candidates = layoutCandidates(width, rows);
   const layouts = candidates.map((candidate) => buildDashboardCandidate(state, width, candidate));
-  return layouts.find((layout) => layout.length <= rows) ?? layouts[layouts.length - 1];
+  const layout = layouts.find((candidateLayout) => candidateLayout.length <= rows) ?? layouts[layouts.length - 1];
+
+  if (state.commandPalette) {
+    return overlayCommandPalette(layout, state.commandPalette, width, rows);
+  }
+
+  return layout;
 }
 
 function layoutCandidates(width: number, rows: number): LayoutCandidate[] {
@@ -375,4 +427,295 @@ function logoLines(width: number, mode: LogoMode): ScreenLine[] {
     { text: centerText("music for thinking and building", width), variant: "muted" as const },
     { text: "", variant: "blank" as const }
   ];
+}
+
+interface CommandPaletteActions {
+  setStreamUrl: (nextUrl: string) => Promise<void>;
+  listAudioDevices?: () => Promise<MpvAudioDevice[]>;
+  selectAudioDevice?: (device: MpvAudioDevice) => Promise<void>;
+}
+
+function handleCommandPaletteKey(state: DashboardState, key: string, actions: CommandPaletteActions): boolean {
+  if (!state.commandPalette) {
+    if (key === CTRL_P) {
+      state.commandPalette = { mode: "menu", input: state.url, selectedIndex: 0 };
+      return true;
+    }
+
+    return false;
+  }
+
+  if (key === ESC) {
+    state.commandPalette = undefined;
+    return true;
+  }
+
+  if (state.commandPalette.mode === "menu") {
+    if (key === ARROW_UP || key === "k") {
+      state.commandPalette = {
+        ...state.commandPalette,
+        selectedIndex: wrapIndex((state.commandPalette.selectedIndex ?? 0) - 1, COMMANDS.length)
+      };
+      return true;
+    }
+
+    if (key === ARROW_DOWN || key === "j") {
+      state.commandPalette = {
+        ...state.commandPalette,
+        selectedIndex: wrapIndex((state.commandPalette.selectedIndex ?? 0) + 1, COMMANDS.length)
+      };
+      return true;
+    }
+
+    if (ENTER_KEYS.has(key)) {
+      if ((state.commandPalette.selectedIndex ?? 0) === 0) {
+        state.commandPalette = { ...state.commandPalette, mode: "url", message: undefined };
+        return true;
+      }
+
+      if (!actions.listAudioDevices) {
+        state.commandPalette = {
+          ...state.commandPalette,
+          message: "output device selection needs mpv"
+        };
+        return true;
+      }
+
+      state.commandPalette = {
+        ...state.commandPalette,
+        mode: "devices",
+        selectedIndex: 0,
+        devices: [],
+        message: "loading devices..."
+      };
+      void actions.listAudioDevices()
+        .then((devices) => {
+          state.commandPalette = {
+            mode: "devices",
+            input: state.url,
+            selectedIndex: 0,
+            devices,
+            message: devices.length > 0 ? undefined : "no output devices found"
+          };
+        })
+        .catch((error: unknown) => {
+          state.commandPalette = {
+            mode: "devices",
+            input: state.url,
+            selectedIndex: 0,
+            devices: [],
+            message: error instanceof Error ? error.message : String(error)
+          };
+        });
+    }
+
+    return true;
+  }
+
+  if (state.commandPalette.mode === "devices") {
+    const devices = state.commandPalette.devices ?? [];
+
+    if (key === ARROW_UP || key === "k") {
+      state.commandPalette = {
+        ...state.commandPalette,
+        selectedIndex: wrapIndex((state.commandPalette.selectedIndex ?? 0) - 1, Math.max(1, devices.length))
+      };
+      return true;
+    }
+
+    if (key === ARROW_DOWN || key === "j") {
+      state.commandPalette = {
+        ...state.commandPalette,
+        selectedIndex: wrapIndex((state.commandPalette.selectedIndex ?? 0) + 1, Math.max(1, devices.length))
+      };
+      return true;
+    }
+
+    if (ENTER_KEYS.has(key)) {
+      const device = devices[state.commandPalette.selectedIndex ?? 0];
+      if (!device || !actions.selectAudioDevice) {
+        return true;
+      }
+
+      state.commandPalette = undefined;
+      void actions.selectAudioDevice(device).catch((error: unknown) => {
+        state.error = error instanceof Error ? error.message : String(error);
+      });
+    }
+
+    return true;
+  }
+
+  if (ENTER_KEYS.has(key)) {
+    const nextUrl = state.commandPalette.input.trim();
+
+    if (!isSupportedStreamUrl(nextUrl)) {
+      state.commandPalette = {
+        ...state.commandPalette,
+        message: "enter a youtube http(s) link"
+      };
+      return true;
+    }
+
+    state.commandPalette = undefined;
+    void actions.setStreamUrl(nextUrl).catch((error: unknown) => {
+      state.error = error instanceof Error ? error.message : String(error);
+    });
+    return true;
+  }
+
+  if (BACKSPACE_KEYS.has(key)) {
+    state.commandPalette = {
+      ...state.commandPalette,
+      input: state.commandPalette.input.slice(0, -1),
+      message: undefined
+    };
+    return true;
+  }
+
+  if (isPrintableInput(key)) {
+    state.commandPalette = {
+      ...state.commandPalette,
+      input: `${state.commandPalette.input}${key}`,
+      message: undefined
+    };
+  }
+
+  return true;
+}
+
+function wrapIndex(index: number, length: number): number {
+  return ((index % length) + length) % length;
+}
+
+function isPrintableInput(key: string): boolean {
+  return key.length === 1 && key >= " " && key !== "\u007f";
+}
+
+function isSupportedStreamUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) && /(^|\.)youtube\.com$|(^|\.)youtu\.be$/.test(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function overlayCommandPalette(
+  lines: ScreenLine[],
+  palette: CommandPaletteState,
+  width: number,
+  rows: number
+): ScreenLine[] {
+  const viewportLines = centerLines(lines, rows);
+  const modal = commandPaletteLines(palette, width);
+  const start = Math.max(0, Math.floor((rows - modal.length) / 2));
+
+  for (let index = 0; index < modal.length && start + index < viewportLines.length; index += 1) {
+    viewportLines[start + index] = modal[index];
+  }
+
+  return viewportLines;
+}
+
+function centerLines(lines: ScreenLine[], rows: number): ScreenLine[] {
+  const visible = lines.slice(0, rows);
+  const topPad = Math.max(0, Math.floor((rows - visible.length) / 2));
+  const output = [
+    ...blankLines(topPad),
+    ...visible
+  ];
+
+  while (output.length < rows) {
+    output.push({ text: "", variant: "blank" });
+  }
+
+  return output;
+}
+
+function commandPaletteLines(palette: CommandPaletteState, width: number): ScreenLine[] {
+  const boxWidth = Math.max(32, Math.min(width - 4, 64));
+  const bodyWidth = Math.max(1, boxWidth - 6);
+  const lines = paletteBodyLines(palette, bodyWidth, boxWidth);
+
+  return [
+    modalLine("", "", bodyWidth, "modal", boxWidth),
+    ...lines,
+    modalLine("", "", bodyWidth, "modal", boxWidth),
+    modalLine("", "", bodyWidth, "modal", boxWidth),
+    modalLine("", "", bodyWidth, "modal", boxWidth)
+  ];
+}
+
+function paletteBodyLines(palette: CommandPaletteState, bodyWidth: number, boxWidth: number): ScreenLine[] {
+  if (palette.mode === "menu") {
+    return [
+      modalLine("Commands", "esc", bodyWidth, "modalTitle", boxWidth),
+      modalLine("", "", bodyWidth, "modal", boxWidth),
+      modalLine("Search", "", bodyWidth, "modalMuted", boxWidth),
+      modalLine("", "", bodyWidth, "modal", boxWidth),
+      modalLine("Suggested", "", bodyWidth, "modalHot", boxWidth),
+      ...COMMANDS.map((command, index) => modalLine(
+        `${index === (palette.selectedIndex ?? 0) ? "> " : "  "}${command}`,
+        "enter",
+        bodyWidth,
+        index === (palette.selectedIndex ?? 0) ? "modalHot" : "modal",
+        boxWidth
+      )),
+      ...(palette.message ? [modalLine(palette.message, "", bodyWidth, "modalMuted", boxWidth)] : [])
+    ];
+  }
+
+  if (palette.mode === "devices") {
+    const devices = palette.devices ?? [];
+    return [
+      modalLine("Select output device", "esc", bodyWidth, "modalTitle", boxWidth),
+      modalLine("", "", bodyWidth, "modal", boxWidth),
+      modalLine("Devices", "", bodyWidth, "modalHot", boxWidth),
+      ...(devices.length > 0
+        ? devices.slice(0, 6).map((device, index) => modalLine(
+          `${index === (palette.selectedIndex ?? 0) ? "> " : "  "}${device.description}`,
+          "enter",
+          bodyWidth,
+          index === (palette.selectedIndex ?? 0) ? "modalHot" : "modal",
+          boxWidth
+        ))
+        : [modalLine(palette.message ?? "loading devices...", "", bodyWidth, "modalMuted", boxWidth)])
+    ];
+  }
+
+  return [
+    modalLine("Set YT stream link", "esc", bodyWidth, "modalTitle", boxWidth),
+    modalLine("", "", bodyWidth, "modal", boxWidth),
+    modalLine("YouTube URL", "", bodyWidth, "modalHot", boxWidth),
+    modalLine(`> ${palette.input || "https://"}`, "", bodyWidth, "modal", boxWidth),
+    modalLine(palette.message ?? "enter to apply", "", bodyWidth, palette.message ? "modalHot" : "modalMuted", boxWidth)
+  ];
+}
+
+function modalLine(
+  left: string,
+  right: string,
+  width: number,
+  variant: ScreenLine["variant"],
+  boxWidth: number
+): ScreenLine {
+  const text = right ? inlineModalRight(left, right, width) : left;
+  return {
+    text: `   ${text}`,
+    variant,
+    boxWidth
+  };
+}
+
+function inlineModalRight(left: string, right: string, width: number): string {
+  if (right.length >= width) {
+    return right.slice(0, width);
+  }
+
+  const leftWidth = Math.max(0, width - right.length - 2);
+  const fittedLeft = left.length > leftWidth
+    ? `${left.slice(0, Math.max(0, leftWidth - 3))}...`
+    : left;
+  return `${fittedLeft}${" ".repeat(Math.max(2, width - fittedLeft.length - right.length))}${right}`;
 }

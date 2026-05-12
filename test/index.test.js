@@ -324,6 +324,39 @@ test("buildDashboard fits a short terminal viewport", () => {
   assert.ok(plainLines.some((line) => line.includes("NOW PLAYING") && line.includes("paused | volume 100%")));
   assert.ok(plainLines.some((line) => line.trim() === "Claude FM"));
   assert.ok(plainLines.some((line) => line.includes("space pause/resume") && line.includes("left/right seek")));
-  assert.ok(plainLines.some((line) => line.includes("o open youtube  q quit")));
+  assert.ok(plainLines.some((line) => line.includes("o open youtube") && line.includes("ctrl+p commands")));
+  assert.ok(plainLines.some((line) => line.includes("q quit")));
   assert.ok(plainLines.findIndex((line) => line.trim().length > 0) <= 1);
+});
+
+test("buildDashboard renders command palette", () => {
+  const output = withTerminalSize(80, 24, () => buildDashboard(dashboardState({
+    commandPalette: {
+      mode: "menu",
+      input: CLAUDE_FM_URL
+    }
+  })));
+  const plainLines = stripAnsi(output).split("\n");
+
+  assert.ok(plainLines.some((line) => line.includes("Commands") && line.includes("esc")));
+  assert.ok(plainLines.some((line) => line.includes("Set YT stream link") && line.includes("enter")));
+  assert.ok(plainLines.some((line) => line.includes("Select output device") && line.includes("enter")));
+});
+
+test("buildDashboard renders output device picker", () => {
+  const output = withTerminalSize(80, 24, () => buildDashboard(dashboardState({
+    commandPalette: {
+      mode: "devices",
+      input: CLAUDE_FM_URL,
+      selectedIndex: 1,
+      devices: [
+        { name: "auto", description: "Auto" },
+        { name: "coreaudio/default", description: "MacBook Speakers" }
+      ]
+    }
+  })));
+  const plainLines = stripAnsi(output).split("\n");
+
+  assert.ok(plainLines.some((line) => line.includes("Select output device") && line.includes("esc")));
+  assert.ok(plainLines.some((line) => line.includes("> MacBook Speakers") && line.includes("enter")));
 });

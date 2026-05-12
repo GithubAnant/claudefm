@@ -4,6 +4,10 @@ import { RESET, THEME } from "./theme.js";
 export type LineVariant =
   | "blank"
   | "logo"
+  | "modal"
+  | "modalTitle"
+  | "modalHot"
+  | "modalMuted"
   | "panel"
   | "panelTitle"
   | "columns"
@@ -16,6 +20,7 @@ export interface ScreenLine {
   text: string;
   variant: LineVariant;
   styledText?: string;
+  boxWidth?: number;
   gap?: number;
   leftWidth?: number;
   rightText?: string;
@@ -133,6 +138,26 @@ export function paintLine(line: ScreenLine, width: number, columns: number, left
       " ".repeat(remainingPad + rightPad),
       RESET
     ].join("");
+  }
+
+  if (
+    line.variant === "modal" ||
+    line.variant === "modalTitle" ||
+    line.variant === "modalHot" ||
+    line.variant === "modalMuted"
+  ) {
+    const boxWidth = Math.min(width, line.boxWidth ?? line.text.length);
+    const modalLeftPad = leftPad + Math.max(0, Math.floor((width - boxWidth) / 2));
+    const modalRightPad = Math.max(0, columns - modalLeftPad - boxWidth);
+    const foreground = line.variant === "modalTitle"
+      ? THEME.text
+      : line.variant === "modalHot"
+        ? THEME.accent
+        : line.variant === "modalMuted"
+          ? THEME.muted
+          : THEME.text;
+
+    return `${THEME.canvas}${" ".repeat(modalLeftPad)}${THEME.panelAlt}${foreground}${fit(line.text, boxWidth)}${THEME.canvas}${" ".repeat(modalRightPad)}${RESET}`;
   }
 
   if (line.variant === "panel" || line.variant === "panelTitle") {
