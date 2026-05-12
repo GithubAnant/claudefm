@@ -38,10 +38,6 @@ export function formatDisplayTitle(title: string): string {
     .replace(/\s+\d{4}-\d{2}-\d{2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?\s*$/, "")
     .trim();
 
-  if (/^claude\s+fm\b/i.test(withoutTimestamp)) {
-    return "Claude FM";
-  }
-
   return withoutTimestamp || "Claude FM";
 }
 
