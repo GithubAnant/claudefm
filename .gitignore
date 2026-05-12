@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/
+.npm-cache/
+*.tgz
+npm-debug.log*
+AGENTS.md

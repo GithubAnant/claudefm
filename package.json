@@ -1,0 +1,30 @@
+{
+  "name": "claudefm",
+  "version": "0.0.1",
+  "description": "A minimal CLI package for ClaudeFM.",
+  "type": "module",
+  "bin": {
+    "claudefm": "bin/claudefm.js"
+  },
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "claudefm",
+    "cli"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
