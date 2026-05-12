@@ -13,6 +13,7 @@ import {
 } from "../dist/index.js";
 import { formatDisplayTitle } from "../dist/format.js";
 import { buildDashboard } from "../dist/tui/dashboard.js";
+import { formatArtistLine } from "../dist/tui/sections.js";
 
 async function withCapturedConsole(fn) {
   const originalLog = console.log;
@@ -299,6 +300,12 @@ test("formatDisplayTitle removes Claude FM timestamp noise", () => {
     "Claude FM"
   );
   assert.equal(formatDisplayTitle("Other Stream 2026-05-12 12:26"), "Other Stream");
+});
+
+test("formatArtistLine hides generic Claude artist metadata", () => {
+  assert.equal(formatArtistLine("Claude"), "");
+  assert.equal(formatArtistLine("Claude FM"), "");
+  assert.equal(formatArtistLine("Real Artist"), "artist Real Artist");
 });
 
 test("buildDashboard fits a short terminal viewport", () => {

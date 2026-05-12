@@ -74,7 +74,7 @@ function setupHelpText(state: DashboardState): string {
 
 export function formatArtistLine(artist: string): string {
   const normalized = artist.trim();
-  if (!normalized || /^claude\s+fm$/i.test(normalized)) {
+  if (!normalized || /^claude(?:\s+fm)?$/i.test(normalized)) {
     return "";
   }
 
