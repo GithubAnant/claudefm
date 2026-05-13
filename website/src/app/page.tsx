@@ -183,7 +183,7 @@ export default function Home() {
       <footer className="footer">
         <Image src="/images/logo.png" alt="" width={36} height={24} />
         <div>
-          <p>Built by Anant Singhal.</p>
+          <p>Built by anant.</p>
           <div className="footer-links">
             {links.map(([label, href]) => (
               <a key={href} href={href}>
