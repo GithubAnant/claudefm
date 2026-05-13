@@ -25,6 +25,7 @@ const ENTER_KEYS = new Set(["\r", "\n"]);
 const BACKSPACE_KEYS = new Set(["\u007f", "\b"]);
 const CLEAR_INPUT_KEYS = new Set(["\u0015", "\u000b", "\u001b\u007f"]);
 const COMMANDS = ["Set YT stream link", "Select output device"] as const;
+const SETTINGS_TIP = "First start: allow 10-15s buffer for smoother playback.";
 const RENDER_INTERVAL_MS = 500;
 let commandPaletteRequestId = 0;
 
@@ -723,7 +724,7 @@ function commandPaletteLines(palette: CommandPaletteState, width: number): Scree
     modalLine("", "", bodyWidth, "modal", boxWidth),
     ...lines,
     modalLine("", "", bodyWidth, "modal", boxWidth),
-    modalLine("", "", bodyWidth, "modal", boxWidth),
+    modalLine(SETTINGS_TIP, "", bodyWidth, "modalDim", boxWidth),
     modalLine("", "", bodyWidth, "modal", boxWidth)
   ];
 }
