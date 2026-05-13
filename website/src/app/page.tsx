@@ -242,7 +242,7 @@ export default function Home() {
           <h3>Command line radio, no browser required.</h3>
           <p>
             ClaudeFM uses yt-dlp to resolve the stream and mpv for local
-            playback, with a browser fallback when your audio stack is not ready.
+            playback inside a focused terminal dashboard.
           </p>
         </article>
         <article>
