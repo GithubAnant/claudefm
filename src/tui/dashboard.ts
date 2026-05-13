@@ -25,6 +25,7 @@ const ENTER_KEYS = new Set(["\r", "\n"]);
 const BACKSPACE_KEYS = new Set(["\u007f", "\b"]);
 const COMMANDS = ["Set YT stream link", "Select output device"] as const;
 const RENDER_INTERVAL_MS = 500;
+let commandPaletteRequestId = 0;
 
 export function shouldUseDashboard(options: Pick<ParsedArgs, "json" | "ui">): boolean {
   return options.ui && !options.json && Boolean(process.stdout.isTTY && process.stdin.isTTY);
@@ -514,27 +515,42 @@ function handleCommandPaletteKey(state: DashboardState, key: string, actions: Co
         return true;
       }
 
+      commandPaletteRequestId += 1;
+      const requestId = commandPaletteRequestId;
       state.commandPalette = {
         ...state.commandPalette,
         mode: "devices",
         selectedIndex: 0,
+        requestId,
         devices: [],
         message: "loading devices..."
       };
       void actions.listAudioDevices()
         .then((devices) => {
+          if (!isActiveDeviceRequest(state, requestId)) {
+            return;
+          }
+
+          const palette = state.commandPalette;
           state.commandPalette = {
             mode: "devices",
-            input: state.url,
+            input: palette.input,
+            requestId,
             selectedIndex: 0,
             devices,
             message: devices.length > 0 ? undefined : "no output devices found"
           };
         })
         .catch((error: unknown) => {
+          if (!isActiveDeviceRequest(state, requestId)) {
+            return;
+          }
+
+          const palette = state.commandPalette;
           state.commandPalette = {
             mode: "devices",
-            input: state.url,
+            input: palette.input,
+            requestId,
             selectedIndex: 0,
             devices: [],
             message: error instanceof Error ? error.message : String(error)
@@ -615,6 +631,13 @@ function handleCommandPaletteKey(state: DashboardState, key: string, actions: Co
   }
 
   return true;
+}
+
+function isActiveDeviceRequest(
+  state: DashboardState,
+  requestId: number
+): state is DashboardState & { commandPalette: CommandPaletteState & { mode: "devices"; requestId: number } } {
+  return state.commandPalette?.mode === "devices" && state.commandPalette.requestId === requestId;
 }
 
 function wrapIndex(index: number, length: number): number {
