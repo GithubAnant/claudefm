@@ -19,9 +19,6 @@ interface Theme {
   dim: string;
   accent: string;
   danger: string;
-  warning: string;
-  border: string;
-  borderHot: string;
 }
 
 const TRUECOLOR_THEME: Theme = {
@@ -32,10 +29,7 @@ const TRUECOLOR_THEME: Theme = {
   muted: "\x1b[38;2;169;151;141m",
   dim: "\x1b[38;2;116;99;90m",
   accent: "\x1b[38;2;217;119;87m",
-  danger: "\x1b[38;2;255;128;102m",
-  warning: "\x1b[38;2;224;163;91m",
-  border: "\x1b[38;2;62;49;43m",
-  borderHot: "\x1b[38;2;217;119;87m"
+  danger: "\x1b[38;2;255;128;102m"
 };
 
 const ANSI256_THEME: Theme = {
@@ -46,10 +40,7 @@ const ANSI256_THEME: Theme = {
   muted: "\x1b[38;5;181m",
   dim: "\x1b[38;5;95m",
   accent: "\x1b[38;5;209m",
-  danger: "\x1b[38;5;203m",
-  warning: "\x1b[38;5;179m",
-  border: "\x1b[38;5;238m",
-  borderHot: "\x1b[38;5;209m"
+  danger: "\x1b[38;5;203m"
 };
 
 export function detectColorMode(environment: TerminalEnvironment = process.env): ColorMode {
@@ -76,7 +67,6 @@ export const THEME = resolveTheme();
 
 export const PANEL_PADDING_X = 2;
 export const PANEL_PADDING_Y = 2;
-export const SECTION_GAP = 2;
 
 export function enterScreen(): void {
   process.stdout.write(`${ENTER_ALT_SCREEN}${THEME.canvas}${THEME.text}`);
