@@ -277,29 +277,32 @@ code {
 
 .copy-icon {
   position: relative;
-  width: 17px;
-  height: 17px;
+  width: 22px;
+  height: 22px;
 }
 
 .copy-icon::before,
 .copy-icon::after {
   content: "";
   position: absolute;
-  width: 10px;
-  height: 12px;
   border: 2px solid currentColor;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .copy-icon::before {
-  left: 1px;
+  left: 2px;
   top: 1px;
-  opacity: 0.6;
+  width: 13px;
+  height: 15px;
+  opacity: 0.8;
 }
 
 .copy-icon::after {
-  bottom: 1px;
-  right: 1px;
+  left: 7px;
+  top: 7px;
+  width: 14px;
+  height: 15px;
+  border: 2px solid currentColor;
   background: #0b0b0b;
 }
 
