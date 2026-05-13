@@ -25,7 +25,7 @@ const ENTER_KEYS = new Set(["\r", "\n"]);
 const BACKSPACE_KEYS = new Set(["\u007f", "\b"]);
 const CLEAR_INPUT_KEYS = new Set(["\u0015", "\u000b", "\u001b\u007f"]);
 const COMMANDS = ["Set YT stream link", "Select output device"] as const;
-const SETTINGS_TIP = "First start: allow 10-15s buffer for smoother playback.";
+const SETTINGS_TIP = "tip: rewind 10-15s if live audio stutters";
 const RENDER_INTERVAL_MS = 500;
 let commandPaletteRequestId = 0;
 
@@ -719,12 +719,20 @@ function commandPaletteLines(palette: CommandPaletteState, width: number): Scree
   const boxWidth = Math.max(32, Math.min(width - 4, 64));
   const bodyWidth = Math.max(1, boxWidth - 6);
   const lines = paletteBodyLines(palette, bodyWidth, boxWidth);
+  const footerLines = palette.mode === "menu"
+    ? [
+      modalLine("", "", bodyWidth, "modal", boxWidth),
+      modalLine(SETTINGS_TIP, "", bodyWidth, "modalDim", boxWidth)
+    ]
+    : [
+      modalLine("", "", bodyWidth, "modal", boxWidth),
+      modalLine("", "", bodyWidth, "modal", boxWidth)
+    ];
 
   return [
     modalLine("", "", bodyWidth, "modal", boxWidth),
     ...lines,
-    modalLine("", "", bodyWidth, "modal", boxWidth),
-    modalLine(SETTINGS_TIP, "", bodyWidth, "modalDim", boxWidth),
+    ...footerLines,
     modalLine("", "", bodyWidth, "modal", boxWidth)
   ];
 }
@@ -773,7 +781,7 @@ function paletteBodyLines(palette: CommandPaletteState, bodyWidth: number, boxWi
   return [
     modalLine("Set YT stream link", "esc", bodyWidth, "modalTitle", boxWidth),
     modalLine("", "", bodyWidth, "modal", boxWidth),
-    modalLine("YouTube URL", "cmd+v paste", bodyWidth, "modalHot", boxWidth),
+    modalLine("YouTube URL", "", bodyWidth, "modalHot", boxWidth),
     modalInputLine(palette.input || "https://", bodyWidth, boxWidth),
     modalLine(palette.message ?? "enter to apply", "", bodyWidth, palette.message ? "modalHot" : "modalMuted", boxWidth)
   ];

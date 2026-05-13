@@ -341,7 +341,7 @@ test("buildDashboard renders command palette", () => {
   assert.ok(plainLines.some((line) => line.includes("Commands") && line.includes("esc")));
   assert.ok(plainLines.some((line) => line.includes("Set YT stream link") && line.includes("enter")));
   assert.ok(plainLines.some((line) => line.includes("Select output device") && line.includes("enter")));
-  assert.ok(plainLines.some((line) => line.includes("allow 10-15s buffer")));
+  assert.ok(plainLines.some((line) => line.includes("tip: rewind 10-15s if live audio stutters")));
 });
 
 test("buildDashboard renders stream URL input as focused", () => {
@@ -353,7 +353,8 @@ test("buildDashboard renders stream URL input as focused", () => {
   })));
   const plainLines = stripAnsi(output).split("\n");
 
-  assert.ok(plainLines.some((line) => line.includes("YouTube URL") && line.includes("cmd+v paste")));
+  assert.ok(plainLines.some((line) => line.includes("YouTube URL")));
+  assert.ok(!plainLines.some((line) => line.includes("cmd+v paste")));
   assert.ok(plainLines.some((line) => line.includes(CLAUDE_FM_URL) && line.includes("▌")));
 });
 
