@@ -1,9 +1,39 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://claudefm.vercel.app";
+const title = "ClaudeFM CLI";
+const description =
+  "Run ClaudeFM as a terminal music player for the Claude FM YouTube live stream, with mpv playback, yt-dlp stream resolution, keyboard controls, and output-device settings.";
+
 export const metadata: Metadata = {
-  title: "claudefm",
-  description: "Claude FM for the command line.",
+  metadataBase: new URL(siteUrl),
+  applicationName: "ClaudeFM",
+  title: {
+    default: title,
+    template: "%s | ClaudeFM"
+  },
+  description,
+  keywords: [
+    "ClaudeFM",
+    "Claude FM",
+    "terminal music player",
+    "command line radio",
+    "YouTube live stream",
+    "mpv player",
+    "yt-dlp",
+    "npm CLI",
+    "terminal audio",
+    "CLI music"
+  ],
+  authors: [{ name: "Anant Singhal", url: "https://github.com/GithubAnant" }],
+  creator: "Anant Singhal",
+  publisher: "Anant Singhal",
+  category: "developer tools",
+  manifest: "/manifest.webmanifest",
+  alternates: {
+    canonical: "/"
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -12,9 +42,47 @@ export const metadata: Metadata = {
     apple: "/icon.png"
   },
   openGraph: {
-    title: "claudefm",
-    description: "Claude FM for the command line."
+    type: "website",
+    url: "/",
+    siteName: "ClaudeFM",
+    title,
+    description,
+    locale: "en_US",
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1668,
+        height: 924,
+        alt: "ClaudeFM terminal dashboard"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@anant_hq",
+    creator: "@anant_hq",
+    title,
+    description,
+    images: ["/twitter-image.png"]
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1
+    }
   }
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#050505",
+  colorScheme: "dark"
 };
 
 export default function RootLayout({
