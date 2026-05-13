@@ -24,7 +24,8 @@ const ARROW_DOWN = "\u001b[B";
 const ENTER_KEYS = new Set(["\r", "\n"]);
 const BACKSPACE_KEYS = new Set(["\u007f", "\b"]);
 const CLEAR_INPUT_KEYS = new Set(["\u0015", "\u000b", "\u001b\u007f"]);
-const COMMANDS = ["Set YT stream link", "Select output device"] as const;
+const COMMANDS = ["Set YT stream link", "Select output device", "GitHub / open source"] as const;
+const PROJECT_URL = "https://github.com/GithubAnant/claudefm";
 const SETTINGS_TIP = "tip: rewind 10-15s if live audio stutters";
 const RENDER_INTERVAL_MS = 500;
 let commandPaletteRequestId = 0;
@@ -52,20 +53,32 @@ export async function runDashboard(
     url: options.url
   };
   const openBrowser = () => openInBrowser(state.url, runner, platform) === 0;
+  const openProject = () => openInBrowser(PROJECT_URL, runner, platform) === 0;
 
   if (environment.commands.mpv) {
-    return await runRichDashboard(state, options.url, browserEnabled ? openBrowser : undefined);
+    return await runRichDashboard(
+      state,
+      options.url,
+      browserEnabled ? openBrowser : undefined,
+      environment.commands.open ? openProject : undefined
+    );
   }
 
   if (environment.canPlayTerminal) {
-    return await runLegacyDashboard(state, runner, options.url, browserEnabled ? openBrowser : undefined);
+    return await runLegacyDashboard(
+      state,
+      runner,
+      options.url,
+      browserEnabled ? openBrowser : undefined,
+      environment.commands.open ? openProject : undefined
+    );
   }
 
   if (browserEnabled && openBrowser()) {
     state.status = "BROWSER";
     state.headline = "Claude FM";
     state.detail = "Opened in YouTube because terminal playback is missing.";
-    return await holdStaticDashboard(state, browserEnabled ? openBrowser : undefined);
+    return await holdStaticDashboard(state, browserEnabled ? openBrowser : undefined, openProject);
   }
 
   state.status = "ERROR";
@@ -73,13 +86,18 @@ export async function runDashboard(
     ? `Run ${environment.installPlan.command} to unlock full terminal playback.`
     : environment.installPlan.steps[0];
   state.error = "Terminal playback is unavailable on this machine.";
-  return await holdStaticDashboard(state, browserEnabled ? openBrowser : undefined);
+  return await holdStaticDashboard(
+    state,
+    browserEnabled ? openBrowser : undefined,
+    environment.commands.open ? openProject : undefined
+  );
 }
 
 async function runRichDashboard(
   state: DashboardState,
   streamUrl: string,
-  openBrowser?: () => boolean
+  openBrowser?: () => boolean,
+  openProject?: () => boolean
 ): Promise<number> {
   const controller = new MpvController();
 
@@ -108,17 +126,18 @@ async function runRichDashboard(
     state.detail = openBrowser
       ? "Could not start mpv. Press o to open YouTube."
       : "Could not start mpv. Run claudefm doctor.";
-    return await holdStaticDashboard(state, openBrowser);
+    return await holdStaticDashboard(state, openBrowser, openProject);
   }
 
-  return await holdInteractiveDashboard(state, controller, openBrowser);
+  return await holdInteractiveDashboard(state, controller, openBrowser, openProject);
 }
 
 async function runLegacyDashboard(
   state: DashboardState,
   runner: CommandRunner,
   streamUrl: string,
-  openBrowser?: () => boolean
+  openBrowser?: () => boolean,
+  openProject?: () => boolean
 ): Promise<number> {
   state.status = "PLAYING";
   state.headline = "Claude FM";
@@ -129,13 +148,14 @@ async function runLegacyDashboard(
   state.status = code === 0 ? "STOPPED" : "ERROR";
   state.detail = code === 0 ? "Playback finished." : "Basic audio mode exited with an error.";
   state.error = code === 0 ? undefined : "ffplay playback failed.";
-  return await holdStaticDashboard(state, openBrowser);
+  return await holdStaticDashboard(state, openBrowser, openProject);
 }
 
 async function holdInteractiveDashboard(
   state: DashboardState,
   controller: MpvController,
-  openBrowser?: () => boolean
+  openBrowser?: () => boolean,
+  openProject?: () => boolean
 ): Promise<number> {
   const stdin = process.stdin;
   const stdout = process.stdout;
@@ -193,7 +213,8 @@ async function holdInteractiveDashboard(
       if (handleCommandPaletteKey(state, key, {
         setStreamUrl: handleSetStreamUrl,
         listAudioDevices: handleListAudioDevices,
-        selectAudioDevice: handleSelectAudioDevice
+        selectAudioDevice: handleSelectAudioDevice,
+        openProject
       })) {
         render(state, { force: true });
         return;
@@ -265,7 +286,11 @@ async function holdInteractiveDashboard(
   });
 }
 
-async function holdStaticDashboard(state: DashboardState, openBrowser?: () => boolean): Promise<number> {
+async function holdStaticDashboard(
+  state: DashboardState,
+  openBrowser?: () => boolean,
+  openProject?: () => boolean
+): Promise<number> {
   const stdin = process.stdin;
   const stdout = process.stdout;
   enterScreen();
@@ -291,7 +316,8 @@ async function holdStaticDashboard(state: DashboardState, openBrowser?: () => bo
       const key = chunk.toString("utf8");
 
       if (handleCommandPaletteKey(state, key, {
-        setStreamUrl: handleSetStreamUrl
+        setStreamUrl: handleSetStreamUrl,
+        openProject
       })) {
         render(state, { force: true });
         return;
@@ -469,6 +495,7 @@ interface CommandPaletteActions {
   setStreamUrl: (nextUrl: string) => Promise<void>;
   listAudioDevices?: () => Promise<MpvAudioDevice[]>;
   selectAudioDevice?: (device: MpvAudioDevice) => Promise<void>;
+  openProject?: () => boolean;
 }
 
 function handleCommandPaletteKey(state: DashboardState, key: string, actions: CommandPaletteActions): boolean {
@@ -504,8 +531,19 @@ function handleCommandPaletteKey(state: DashboardState, key: string, actions: Co
     }
 
     if (ENTER_KEYS.has(key)) {
-      if ((state.commandPalette.selectedIndex ?? 0) === 0) {
+      const selectedIndex = state.commandPalette.selectedIndex ?? 0;
+      if (selectedIndex === 0) {
         state.commandPalette = { ...state.commandPalette, mode: "url", message: undefined };
+        return true;
+      }
+
+      if (selectedIndex === 2) {
+        if (!actions.openProject?.()) {
+          state.commandPalette = {
+            ...state.commandPalette,
+            message: "browser handoff unavailable"
+          };
+        }
         return true;
       }
 
