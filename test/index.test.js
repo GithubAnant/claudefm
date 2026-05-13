@@ -142,6 +142,49 @@ test("inspectEnvironment prefers mpv when available", () => {
   assert.equal(environment.installPlan.command, "brew install yt-dlp mpv");
 });
 
+test("inspectEnvironment uses WinGet setup guidance on Windows", () => {
+  const runner = {
+    run(command, args = []) {
+      return {
+        status: command === "where" && ["cmd", "winget"].includes(args[0]) ? 0 : 1,
+        stdout: "",
+        stderr: ""
+      };
+    }
+  };
+
+  const environment = inspectEnvironment(runner, "win32");
+
+  assert.equal(environment.canPlayTerminal, false);
+  assert.equal(environment.installPlan.command, "winget install yt-dlp.yt-dlp mpv.net");
+  assert.match(environment.installPlan.note, /Restart the terminal/);
+});
+
+test("inspectEnvironment uses Linux package manager setup guidance", () => {
+  const cases = [
+    ["apt-get", "sudo apt-get install yt-dlp mpv"],
+    ["dnf", "sudo dnf install yt-dlp mpv"],
+    ["pacman", "sudo pacman -S yt-dlp mpv"]
+  ];
+
+  for (const [manager, installCommand] of cases) {
+    const runner = {
+      run(command, args = []) {
+        return {
+          status: command === "which" && args[0] === manager ? 0 : 1,
+          stdout: "",
+          stderr: ""
+        };
+      }
+    };
+
+    const environment = inspectEnvironment(runner, "linux");
+
+    assert.equal(environment.canPlayTerminal, false);
+    assert.equal(environment.installPlan.command, installCommand);
+  }
+});
+
 test("resolvePlayer uses environment state", () => {
   assert.equal(
     resolvePlayer(undefined, {
@@ -257,6 +300,43 @@ test("playStream prints setup guidance when terminal deps are missing", async ()
   assert.match(logs.join("\n"), /Run this first: brew install yt-dlp mpv/);
   assert.match(logs.join("\n"), /To open YouTube intentionally, run: claudefm open/);
   assert.equal(invocations.some(([command]) => command === "open"), false);
+});
+
+test("playStream does not auto-open YouTube on Windows or Linux when deps are missing", async () => {
+  for (const platform of ["win32", "linux"]) {
+    const invocations = [];
+    const runner = {
+      run(command, args = []) {
+        invocations.push([command, args]);
+
+        if (command === "where") {
+          return {
+            status: ["cmd", "winget"].includes(args[0]) ? 0 : 1,
+            stdout: "",
+            stderr: ""
+          };
+        }
+
+        if (command === "which") {
+          return {
+            status: ["xdg-open", "apt-get"].includes(args[0]) ? 0 : 1,
+            stdout: "",
+            stderr: ""
+          };
+        }
+
+        throw new Error(`Unexpected command: ${command}`);
+      }
+    };
+
+    const { result, logs } = await withCapturedConsole(() =>
+      playStream({ player: undefined, url: CLAUDE_FM_URL, browser: true }, runner, platform)
+    );
+
+    assert.equal(result, 1);
+    assert.match(logs.join("\n"), /Terminal playback is not ready/);
+    assert.equal(invocations.some(([command]) => command === "cmd" || command === "xdg-open"), false);
+  }
 });
 
 test("runSetup prints the recommended command", async () => {
