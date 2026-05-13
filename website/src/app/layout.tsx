@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/opengraph-image.png",
+        url: "/images/demo.png",
         width: 1668,
         height: 924,
         alt: "ClaudeFM terminal dashboard"
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
     creator: "@anant_hq",
     title,
     description,
-    images: ["/twitter-image.png"]
+    images: ["/images/demo.png"]
   },
   robots: {
     index: true,
