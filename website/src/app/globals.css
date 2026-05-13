@@ -312,7 +312,10 @@ code {
 }
 
 .demo-section {
+  width: min(1360px, calc(100vw - 48px));
+  margin-left: 50%;
   padding: 56px 0 96px;
+  transform: translateX(-50%);
 }
 
 .video-frame {
@@ -448,6 +451,10 @@ kbd {
 @media (max-width: 640px) {
   .site-shell {
     width: min(100% - 28px, 1180px);
+  }
+
+  .demo-section {
+    width: min(100vw - 28px, 1360px);
   }
 
   .nav {
