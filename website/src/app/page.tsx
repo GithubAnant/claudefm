@@ -67,7 +67,7 @@ export default function Home() {
             priority
           />
           <p className="eyebrow">terminal radio for deep work</p>
-          <h1>Claude FM, tuned for the command line.</h1>
+          <h1>Run claudefm in your terminal.</h1>
           <p className="lede">
             A small audio-first TUI for the Claude FM stream, with playback
             controls, output-device selection, and a clean dashboard that stays
