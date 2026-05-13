@@ -131,9 +131,8 @@ export default function Home() {
           <p className="eyebrow">terminal music player for command line radio</p>
           <h1>Run ClaudeFM in your terminal.</h1>
           <p className="lede">
-            A small audio-first TUI for the ClaudeFM stream, with playback
-            controls, output-device selection, and a clean dashboard that stays
-            out of your way.
+            A small audio-first TUI for the ClaudeFM YouTube lofi stream, with
+            playback controls and a clean dashboard that stays out of your way.
           </p>
 
           <div className="hero-actions" aria-label="Project links">
