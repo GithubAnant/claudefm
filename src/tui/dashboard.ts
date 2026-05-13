@@ -23,8 +23,12 @@ const ARROW_UP = "\u001b[A";
 const ARROW_DOWN = "\u001b[B";
 const ENTER_KEYS = new Set(["\r", "\n"]);
 const BACKSPACE_KEYS = new Set(["\u007f", "\b"]);
-const COMMANDS = ["Set YT stream link", "Select output device"] as const;
+const CLEAR_INPUT_KEYS = new Set(["\u0015", "\u000b", "\u001b\u007f"]);
+const COMMANDS = ["Set YT stream link", "Select output device", "GitHub repo"] as const;
+const PROJECT_URL = "https://github.com/GithubAnant/claudefm";
+const SETTINGS_TIP = "tip: rewind 10-15s if live audio stutters";
 const RENDER_INTERVAL_MS = 500;
+let commandPaletteRequestId = 0;
 
 export function shouldUseDashboard(options: Pick<ParsedArgs, "json" | "ui">): boolean {
   return options.ui && !options.json && Boolean(process.stdout.isTTY && process.stdin.isTTY);
@@ -49,20 +53,32 @@ export async function runDashboard(
     url: options.url
   };
   const openBrowser = () => openInBrowser(state.url, runner, platform) === 0;
+  const openProject = () => openInBrowser(PROJECT_URL, runner, platform) === 0;
 
   if (environment.commands.mpv) {
-    return await runRichDashboard(state, options.url, browserEnabled ? openBrowser : undefined);
+    return await runRichDashboard(
+      state,
+      options.url,
+      browserEnabled ? openBrowser : undefined,
+      environment.commands.open ? openProject : undefined
+    );
   }
 
   if (environment.canPlayTerminal) {
-    return await runLegacyDashboard(state, runner, options.url, browserEnabled ? openBrowser : undefined);
+    return await runLegacyDashboard(
+      state,
+      runner,
+      options.url,
+      browserEnabled ? openBrowser : undefined,
+      environment.commands.open ? openProject : undefined
+    );
   }
 
   if (browserEnabled && openBrowser()) {
     state.status = "BROWSER";
     state.headline = "Claude FM";
     state.detail = "Opened in YouTube because terminal playback is missing.";
-    return await holdStaticDashboard(state, browserEnabled ? openBrowser : undefined);
+    return await holdStaticDashboard(state, browserEnabled ? openBrowser : undefined, openProject);
   }
 
   state.status = "ERROR";
@@ -70,13 +86,18 @@ export async function runDashboard(
     ? `Run ${environment.installPlan.command} to unlock full terminal playback.`
     : environment.installPlan.steps[0];
   state.error = "Terminal playback is unavailable on this machine.";
-  return await holdStaticDashboard(state, browserEnabled ? openBrowser : undefined);
+  return await holdStaticDashboard(
+    state,
+    browserEnabled ? openBrowser : undefined,
+    environment.commands.open ? openProject : undefined
+  );
 }
 
 async function runRichDashboard(
   state: DashboardState,
   streamUrl: string,
-  openBrowser?: () => boolean
+  openBrowser?: () => boolean,
+  openProject?: () => boolean
 ): Promise<number> {
   const controller = new MpvController();
 
@@ -105,17 +126,18 @@ async function runRichDashboard(
     state.detail = openBrowser
       ? "Could not start mpv. Press o to open YouTube."
       : "Could not start mpv. Run claudefm doctor.";
-    return await holdStaticDashboard(state, openBrowser);
+    return await holdStaticDashboard(state, openBrowser, openProject);
   }
 
-  return await holdInteractiveDashboard(state, controller, openBrowser);
+  return await holdInteractiveDashboard(state, controller, openBrowser, openProject);
 }
 
 async function runLegacyDashboard(
   state: DashboardState,
   runner: CommandRunner,
   streamUrl: string,
-  openBrowser?: () => boolean
+  openBrowser?: () => boolean,
+  openProject?: () => boolean
 ): Promise<number> {
   state.status = "PLAYING";
   state.headline = "Claude FM";
@@ -126,13 +148,14 @@ async function runLegacyDashboard(
   state.status = code === 0 ? "STOPPED" : "ERROR";
   state.detail = code === 0 ? "Playback finished." : "Basic audio mode exited with an error.";
   state.error = code === 0 ? undefined : "ffplay playback failed.";
-  return await holdStaticDashboard(state, openBrowser);
+  return await holdStaticDashboard(state, openBrowser, openProject);
 }
 
 async function holdInteractiveDashboard(
   state: DashboardState,
   controller: MpvController,
-  openBrowser?: () => boolean
+  openBrowser?: () => boolean,
+  openProject?: () => boolean
 ): Promise<number> {
   const stdin = process.stdin;
   const stdout = process.stdout;
@@ -190,7 +213,8 @@ async function holdInteractiveDashboard(
       if (handleCommandPaletteKey(state, key, {
         setStreamUrl: handleSetStreamUrl,
         listAudioDevices: handleListAudioDevices,
-        selectAudioDevice: handleSelectAudioDevice
+        selectAudioDevice: handleSelectAudioDevice,
+        openProject
       })) {
         render(state, { force: true });
         return;
@@ -262,7 +286,11 @@ async function holdInteractiveDashboard(
   });
 }
 
-async function holdStaticDashboard(state: DashboardState, openBrowser?: () => boolean): Promise<number> {
+async function holdStaticDashboard(
+  state: DashboardState,
+  openBrowser?: () => boolean,
+  openProject?: () => boolean
+): Promise<number> {
   const stdin = process.stdin;
   const stdout = process.stdout;
   enterScreen();
@@ -288,7 +316,8 @@ async function holdStaticDashboard(state: DashboardState, openBrowser?: () => bo
       const key = chunk.toString("utf8");
 
       if (handleCommandPaletteKey(state, key, {
-        setStreamUrl: handleSetStreamUrl
+        setStreamUrl: handleSetStreamUrl,
+        openProject
       })) {
         render(state, { force: true });
         return;
@@ -466,6 +495,7 @@ interface CommandPaletteActions {
   setStreamUrl: (nextUrl: string) => Promise<void>;
   listAudioDevices?: () => Promise<MpvAudioDevice[]>;
   selectAudioDevice?: (device: MpvAudioDevice) => Promise<void>;
+  openProject?: () => boolean;
 }
 
 function handleCommandPaletteKey(state: DashboardState, key: string, actions: CommandPaletteActions): boolean {
@@ -479,7 +509,7 @@ function handleCommandPaletteKey(state: DashboardState, key: string, actions: Co
   }
 
   if (key === ESC) {
-    state.commandPalette = undefined;
+    state.commandPalette = closeOrBackCommandPalette(state.commandPalette);
     return true;
   }
 
@@ -501,8 +531,19 @@ function handleCommandPaletteKey(state: DashboardState, key: string, actions: Co
     }
 
     if (ENTER_KEYS.has(key)) {
-      if ((state.commandPalette.selectedIndex ?? 0) === 0) {
+      const selectedIndex = state.commandPalette.selectedIndex ?? 0;
+      if (selectedIndex === 0) {
         state.commandPalette = { ...state.commandPalette, mode: "url", message: undefined };
+        return true;
+      }
+
+      if (selectedIndex === 2) {
+        if (!actions.openProject?.()) {
+          state.commandPalette = {
+            ...state.commandPalette,
+            message: "browser handoff unavailable"
+          };
+        }
         return true;
       }
 
@@ -514,27 +555,43 @@ function handleCommandPaletteKey(state: DashboardState, key: string, actions: Co
         return true;
       }
 
+      commandPaletteRequestId += 1;
+      const requestId = commandPaletteRequestId;
       state.commandPalette = {
         ...state.commandPalette,
         mode: "devices",
         selectedIndex: 0,
+        requestId,
         devices: [],
         message: "loading devices..."
       };
       void actions.listAudioDevices()
         .then((devices) => {
+          if (!isActiveDeviceRequest(state, requestId)) {
+            return;
+          }
+
+          const palette = state.commandPalette;
+          const selectedIndex = selectedDeviceIndex(devices);
           state.commandPalette = {
             mode: "devices",
-            input: state.url,
-            selectedIndex: 0,
+            input: palette.input,
+            requestId,
+            selectedIndex,
             devices,
             message: devices.length > 0 ? undefined : "no output devices found"
           };
         })
         .catch((error: unknown) => {
+          if (!isActiveDeviceRequest(state, requestId)) {
+            return;
+          }
+
+          const palette = state.commandPalette;
           state.commandPalette = {
             mode: "devices",
-            input: state.url,
+            input: palette.input,
+            requestId,
             selectedIndex: 0,
             devices: [],
             message: error instanceof Error ? error.message : String(error)
@@ -606,10 +663,20 @@ function handleCommandPaletteKey(state: DashboardState, key: string, actions: Co
     return true;
   }
 
-  if (isPrintableInput(key)) {
+  if (CLEAR_INPUT_KEYS.has(key)) {
     state.commandPalette = {
       ...state.commandPalette,
-      input: `${state.commandPalette.input}${key}`,
+      input: "",
+      message: undefined
+    };
+    return true;
+  }
+
+  const input = textInputFromKey(key);
+  if (input) {
+    state.commandPalette = {
+      ...state.commandPalette,
+      input: `${state.commandPalette.input}${input}`,
       message: undefined
     };
   }
@@ -617,12 +684,44 @@ function handleCommandPaletteKey(state: DashboardState, key: string, actions: Co
   return true;
 }
 
+function closeOrBackCommandPalette(palette: CommandPaletteState): CommandPaletteState | undefined {
+  if (palette.mode === "menu") {
+    return undefined;
+  }
+
+  return {
+    mode: "menu",
+    input: palette.input,
+    selectedIndex: palette.mode === "devices" ? 1 : 0
+  };
+}
+
+function isActiveDeviceRequest(
+  state: DashboardState,
+  requestId: number
+): state is DashboardState & { commandPalette: CommandPaletteState & { mode: "devices"; requestId: number } } {
+  return state.commandPalette?.mode === "devices" && state.commandPalette.requestId === requestId;
+}
+
 function wrapIndex(index: number, length: number): number {
   return ((index % length) + length) % length;
 }
 
-function isPrintableInput(key: string): boolean {
-  return key.length === 1 && key >= " " && key !== "\u007f";
+function selectedDeviceIndex(devices: MpvAudioDevice[]): number {
+  return Math.max(0, devices.findIndex((device) => device.selected));
+}
+
+function textInputFromKey(key: string): string {
+  const bracketedPaste = /^\u001b\[200~([\s\S]*)\u001b\[201~$/.exec(key);
+  const value = bracketedPaste ? bracketedPaste[1] : key;
+
+  if (!bracketedPaste && value.includes(ESC)) {
+    return "";
+  }
+
+  return Array.from(value)
+    .filter((character) => character >= " " && character !== "\u007f")
+    .join("");
 }
 
 function isSupportedStreamUrl(value: string): boolean {
@@ -670,12 +769,20 @@ function commandPaletteLines(palette: CommandPaletteState, width: number): Scree
   const boxWidth = Math.max(32, Math.min(width - 4, 64));
   const bodyWidth = Math.max(1, boxWidth - 6);
   const lines = paletteBodyLines(palette, bodyWidth, boxWidth);
+  const footerLines = palette.mode === "menu"
+    ? [
+      modalLine("", "", bodyWidth, "modal", boxWidth),
+      modalLine(SETTINGS_TIP, "", bodyWidth, "modalDim", boxWidth)
+    ]
+    : [
+      modalLine("", "", bodyWidth, "modal", boxWidth),
+      modalLine("", "", bodyWidth, "modal", boxWidth)
+    ];
 
   return [
     modalLine("", "", bodyWidth, "modal", boxWidth),
     ...lines,
-    modalLine("", "", bodyWidth, "modal", boxWidth),
-    modalLine("", "", bodyWidth, "modal", boxWidth),
+    ...footerLines,
     modalLine("", "", bodyWidth, "modal", boxWidth)
   ];
 }
@@ -701,27 +808,36 @@ function paletteBodyLines(palette: CommandPaletteState, bodyWidth: number, boxWi
 
   if (palette.mode === "devices") {
     const devices = palette.devices ?? [];
+    const visibleDevices = devices.slice(0, 6);
     return [
-      modalLine("Select output device", "esc", bodyWidth, "modalTitle", boxWidth),
+      modalLine("Select output device", "esc back", bodyWidth, "modalTitle", boxWidth),
       modalLine("", "", bodyWidth, "modal", boxWidth),
-      modalLine("Devices", "", bodyWidth, "modalHot", boxWidth),
+      modalLine("Current", "", bodyWidth, "modalHot", boxWidth),
       ...(devices.length > 0
-        ? devices.slice(0, 6).map((device, index) => modalLine(
+        ? visibleDevices.flatMap((device, index) => [
+          ...(index === 1
+            ? [
+              modalLine("", "", bodyWidth, "modal", boxWidth),
+              modalLine("Other devices", "", bodyWidth, "modalHot", boxWidth)
+            ]
+            : []),
+          modalLine(
           `${index === (palette.selectedIndex ?? 0) ? "> " : "  "}${device.description}`,
-          "enter",
+          device.selected ? "active" : "enter",
           bodyWidth,
           index === (palette.selectedIndex ?? 0) ? "modalHot" : "modal",
           boxWidth
-        ))
+          )
+        ])
         : [modalLine(palette.message ?? "loading devices...", "", bodyWidth, "modalMuted", boxWidth)])
     ];
   }
 
   return [
-    modalLine("Set YT stream link", "esc", bodyWidth, "modalTitle", boxWidth),
+    modalLine("Set YT stream link", "esc back", bodyWidth, "modalTitle", boxWidth),
     modalLine("", "", bodyWidth, "modal", boxWidth),
     modalLine("YouTube URL", "", bodyWidth, "modalHot", boxWidth),
-    modalLine(`> ${palette.input || "https://"}`, "", bodyWidth, "modal", boxWidth),
+    modalInputLine(palette.input || "https://", bodyWidth, boxWidth),
     modalLine(palette.message ?? "enter to apply", "", bodyWidth, palette.message ? "modalHot" : "modalMuted", boxWidth)
   ];
 }
@@ -737,6 +853,30 @@ function modalLine(
   return {
     text: `   ${text}`,
     variant,
+    boxWidth
+  };
+}
+
+function modalInputLine(value: string, width: number, boxWidth: number): ScreenLine {
+  const inputWidth = Math.max(1, width - 2);
+  const input = value.length > inputWidth - 2
+    ? value.slice(Math.max(0, value.length - inputWidth + 5))
+    : value;
+  const fieldText = ` ${input}${THEME.accent}▌${THEME.text}`;
+  const fittedField = `${fieldText}${" ".repeat(Math.max(0, inputWidth - input.length - 2))}`;
+  const styledText = [
+    "   ",
+    THEME.panel,
+    THEME.text,
+    fittedField,
+    THEME.panelAlt,
+    " ".repeat(Math.max(0, boxWidth - inputWidth - 3))
+  ].join("");
+
+  return {
+    text: `   ${value}`,
+    styledText,
+    variant: "modalInput",
     boxWidth
   };
 }

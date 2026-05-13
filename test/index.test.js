@@ -341,6 +341,24 @@ test("buildDashboard renders command palette", () => {
   assert.ok(plainLines.some((line) => line.includes("Commands") && line.includes("esc")));
   assert.ok(plainLines.some((line) => line.includes("Set YT stream link") && line.includes("enter")));
   assert.ok(plainLines.some((line) => line.includes("Select output device") && line.includes("enter")));
+  assert.ok(plainLines.some((line) => line.includes("GitHub repo") && line.includes("enter")));
+  assert.ok(plainLines.some((line) => line.includes("tip: rewind 10-15s if live audio stutters")));
+});
+
+test("buildDashboard renders stream URL input as focused", () => {
+  const output = withTerminalSize(80, 24, () => buildDashboard(dashboardState({
+    commandPalette: {
+      mode: "url",
+      input: CLAUDE_FM_URL
+    }
+  })));
+  const plainLines = stripAnsi(output).split("\n");
+
+  assert.ok(plainLines.some((line) => line.includes("Set YT stream link") && line.includes("esc back")));
+  assert.ok(plainLines.some((line) => line.includes("YouTube URL")));
+  assert.ok(!plainLines.some((line) => line.includes("cmd+v paste")));
+  assert.ok(!plainLines.some((line) => line.includes("tip: rewind")));
+  assert.ok(plainLines.some((line) => line.includes(CLAUDE_FM_URL) && line.includes("▌")));
 });
 
 test("buildDashboard renders output device picker", () => {
@@ -348,15 +366,18 @@ test("buildDashboard renders output device picker", () => {
     commandPalette: {
       mode: "devices",
       input: CLAUDE_FM_URL,
-      selectedIndex: 1,
+      selectedIndex: 0,
       devices: [
-        { name: "auto", description: "Auto" },
+        { name: "auto", description: "Auto", selected: true },
         { name: "coreaudio/default", description: "MacBook Speakers" }
       ]
     }
   })));
   const plainLines = stripAnsi(output).split("\n");
 
-  assert.ok(plainLines.some((line) => line.includes("Select output device") && line.includes("esc")));
-  assert.ok(plainLines.some((line) => line.includes("> MacBook Speakers") && line.includes("enter")));
+  assert.ok(plainLines.some((line) => line.includes("Select output device") && line.includes("esc back")));
+  assert.ok(!plainLines.some((line) => line.includes("tip: rewind")));
+  assert.ok(plainLines.some((line) => line.includes("Current")));
+  assert.ok(plainLines.some((line) => line.includes("> Auto") && line.includes("active")));
+  assert.ok(plainLines.some((line) => line.includes("MacBook Speakers") && line.includes("enter")));
 });

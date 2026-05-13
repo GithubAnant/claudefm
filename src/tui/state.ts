@@ -19,6 +19,7 @@ export interface CommandPaletteState {
   mode: "menu" | "url" | "devices";
   input: string;
   selectedIndex?: number;
+  requestId?: number;
   devices?: MpvAudioDevice[];
   message?: string;
 }
