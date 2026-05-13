@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { DemoVideo } from "./demo-video";
 import { InstallCard } from "./install-card";
 import { NavLink } from "./nav-link";
 
@@ -145,20 +146,7 @@ export default function Home() {
       </section>
 
       <section id="demo" className="demo-section">
-        <div className="video-frame">
-          <video
-            controls
-            muted
-            playsInline
-            poster="/images/demo.png"
-            preload="metadata"
-          >
-            <source
-              src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
-              type="video/mp4"
-            />
-          </video>
-        </div>
+        <DemoVideo />
       </section>
 
       <section className="details-grid" aria-label="Features and controls">

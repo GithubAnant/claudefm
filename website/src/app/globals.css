@@ -372,16 +372,49 @@ code {
 }
 
 .video-frame {
+  position: relative;
   padding: 14px;
   border: 1px solid var(--line);
   background: var(--panel);
 }
 
-video {
+.demo-video {
   display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000;
+  object-fit: cover;
+}
+
+.mute-button {
+  position: absolute;
+  left: 28px;
+  top: 28px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(224, 118, 79, 0.42);
+  border-radius: 999px;
+  color: var(--ink);
+  background: rgba(11, 11, 11, 0.72);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.mute-button:hover {
+  border-color: var(--accent);
+  background: rgba(11, 11, 11, 0.88);
+  transform: translateY(-1px);
+}
+
+.speaker-icon {
+  width: 22px;
+  height: 22px;
+  display: block;
 }
 
 .details-grid {
