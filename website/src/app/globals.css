@@ -174,7 +174,8 @@ h1 {
 }
 
 .install-card {
-  padding: 22px;
+  border-radius: 8px;
+  overflow: hidden;
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.3);
 }
 
@@ -188,50 +189,126 @@ h1 {
 }
 
 .install-card-header {
-  margin-bottom: 18px;
-  color: var(--muted);
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
-
-.install-list {
-  display: grid;
-  gap: 12px;
-}
-
-.install-row {
-  display: grid;
-  grid-template-columns: 54px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  padding: 13px 16px 12px;
   background: #0b0b0b;
-  border-left: 3px solid transparent;
 }
 
-.install-row:first-child {
-  border-left-color: var(--accent);
+.install-tabs {
+  display: flex;
+  gap: 9px;
+  min-width: 0;
+  overflow-x: auto;
 }
 
-.manager,
-kbd {
+.install-tab {
+  border: 0;
+  background: #171717;
+  border-radius: 7px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  min-height: 32px;
+  padding: 0 14px;
+  transition:
+    background 180ms ease,
+    color 180ms ease;
+}
+
+.install-tab:hover,
+.install-tab:focus-visible {
+  background: #211f1e;
   color: var(--foreground);
-  font-weight: 700;
+  outline: none;
+}
+
+.install-tab[aria-selected="true"] {
+  background: var(--foreground);
+  color: #080807;
 }
 
 code {
   overflow-wrap: anywhere;
-  color: var(--muted);
+  color: var(--foreground);
   font-family: inherit;
   font-size: 13px;
   line-height: 1.45;
 }
 
-.note {
-  grid-column: 2;
-  color: var(--dim);
+.copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
   font-size: 12px;
+  font-weight: 700;
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.copy-button:hover,
+.copy-button:focus-visible {
+  color: var(--foreground);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.copy-icon {
+  position: relative;
+  width: 17px;
+  height: 17px;
+}
+
+.copy-icon::before,
+.copy-icon::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 2px;
+}
+
+.copy-icon::before {
+  left: 1px;
+  top: 1px;
+  opacity: 0.6;
+}
+
+.copy-icon::after {
+  bottom: 1px;
+  right: 1px;
+  background: #0b0b0b;
+}
+
+.copy-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.install-command {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 20px 20px 22px;
+  background: #0b0b0b;
+}
+
+.install-command code {
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .demo-section {
@@ -393,12 +470,8 @@ kbd {
     padding: 18px;
   }
 
-  .install-row {
-    grid-template-columns: 1fr;
-  }
-
-  .note {
-    grid-column: auto;
+  .install-card {
+    padding: 0;
   }
 
   .footer {

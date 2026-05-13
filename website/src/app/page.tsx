@@ -1,29 +1,5 @@
 import Image from "next/image";
-
-const installCommands = [
-  {
-    manager: "npm",
-    command: "npm install -g claudefm"
-  },
-  {
-    manager: "pnpm",
-    command: "pnpm add -g claudefm"
-  },
-  {
-    manager: "bun",
-    command: "bun add -g claudefm"
-  },
-  {
-    manager: "yarn",
-    command: "yarn global add claudefm"
-  },
-  {
-    manager: "curl",
-    command:
-      "curl -fsSL https://raw.githubusercontent.com/GithubAnant/claudefm/main/install.sh | sh",
-    note: "macOS only"
-  }
-];
+import { InstallCard } from "./install-card";
 
 const controls = [
   ["space", "pause or resume"],
@@ -169,20 +145,7 @@ export default function Home() {
           </div>
         </div>
 
-        <aside id="install" className="install-card" aria-label="Install commands">
-          <div className="install-card-header">
-            <span>install</span>
-          </div>
-          <div className="install-list">
-            {installCommands.map((item) => (
-              <div className="install-row" key={item.manager}>
-                <span className="manager">{item.manager}</span>
-                <code>{item.command}</code>
-                {item.note ? <span className="note">{item.note}</span> : null}
-              </div>
-            ))}
-          </div>
-        </aside>
+        <InstallCard />
       </section>
 
       <section id="demo" className="demo-section">
