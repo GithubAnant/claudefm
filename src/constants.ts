@@ -1,4 +1,4 @@
-export const VERSION = "0.1.2";
+export const VERSION = "0.1.3";
 export const CLAUDE_FM_URL = "https://www.youtube.com/watch?v=YmQ7jRgf4f0";
 export const YOUTUBE_WATCH_URL_PREFIX = "https://www.youtube.com/watch?v=";
 export const SUPPORTED_PLAYERS = ["mpv", "ffplay"] as const;

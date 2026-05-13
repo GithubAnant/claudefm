@@ -61,7 +61,7 @@ const jsonLd = {
         "A terminal music player for the Claude FM YouTube live stream, with mpv playback, yt-dlp stream resolution, keyboard controls, and output-device settings.",
       applicationCategory: "MultimediaApplication",
       operatingSystem: "macOS, Linux, Windows",
-      softwareVersion: "0.1.2",
+      softwareVersion: "0.1.3",
       license: "https://github.com/GithubAnant/claudefm/blob/main/LICENSE",
       codeRepository: "https://github.com/GithubAnant/claudefm",
       downloadUrl: "https://www.npmjs.com/package/claudefm",
