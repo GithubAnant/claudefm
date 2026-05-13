@@ -185,31 +185,6 @@ export default function Home() {
         </aside>
       </section>
 
-      <section className="product-strip" aria-label="Claude FM terminal preview">
-        <div className="logo-panel">
-          <Image
-            src="/images/claudefm.png"
-            alt="Claude FM"
-            width={494}
-            height={104}
-            sizes="(max-width: 900px) 80vw, 494px"
-            priority
-          />
-          <p>music for thinking and building</p>
-        </div>
-        <div className="terminal-panel">
-          <div className="panel-title">
-            <span>now playing</span>
-            <span>paused | volume 100%</span>
-          </div>
-          <div className="track">Claude FM</div>
-          <div className="progress" aria-hidden="true">
-            <span />
-          </div>
-          <div className="time">14:18:35 / 14:18:40</div>
-        </div>
-      </section>
-
       <section id="demo" className="demo-section">
         <div className="section-copy">
           <p className="eyebrow">demo</p>

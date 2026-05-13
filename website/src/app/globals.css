@@ -168,7 +168,6 @@ h1 {
 }
 
 .install-card,
-.terminal-panel,
 .details-grid article {
   border: 1px solid var(--line);
   background: rgba(20, 20, 20, 0.92);
@@ -180,7 +179,6 @@ h1 {
 }
 
 .install-card-header,
-.panel-title,
 .control-row,
 .footer {
   display: flex;
@@ -234,78 +232,6 @@ code {
   grid-column: 2;
   color: var(--dim);
   font-size: 12px;
-}
-
-.product-strip {
-  display: grid;
-  grid-template-columns: minmax(320px, 0.78fr) minmax(0, 1fr);
-  gap: 0;
-  min-height: 420px;
-  border: 1px solid var(--line);
-  background: #030303;
-}
-
-.logo-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 44px;
-  border-right: 1px solid var(--line);
-  text-align: center;
-}
-
-.logo-panel img {
-  width: min(100%, 494px);
-  height: auto;
-}
-
-.logo-panel p {
-  margin: 28px 0 0;
-  color: var(--muted);
-}
-
-.terminal-panel {
-  align-self: center;
-  margin: 42px;
-  padding: 28px;
-}
-
-.panel-title {
-  margin-bottom: 20px;
-  color: var(--foreground);
-  font-weight: 700;
-}
-
-.panel-title span:first-child {
-  color: var(--accent);
-  text-transform: uppercase;
-}
-
-.track {
-  margin-bottom: 12px;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.progress {
-  width: 100%;
-  height: 26px;
-  margin-bottom: 16px;
-  background: var(--background);
-}
-
-.progress span {
-  display: block;
-  width: 78%;
-  height: 100%;
-  background: var(--accent);
-}
-
-.time {
-  color: var(--accent-strong);
-  font-size: 24px;
-  text-align: right;
 }
 
 .demo-section {
@@ -454,7 +380,6 @@ kbd {
 
 @media (max-width: 920px) {
   .hero,
-  .product-strip,
   .demo-section,
   .details-grid,
   .faq-list {
@@ -465,14 +390,6 @@ kbd {
     padding-top: 52px;
   }
 
-  .logo-panel {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .terminal-panel {
-    margin: 24px;
-  }
 }
 
 @media (max-width: 640px) {
@@ -496,7 +413,6 @@ kbd {
   }
 
   .install-card,
-  .terminal-panel,
   .details-grid article {
     padding: 18px;
   }
@@ -507,16 +423,6 @@ kbd {
 
   .note {
     grid-column: auto;
-  }
-
-  .panel-title {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .time {
-    font-size: 18px;
-    text-align: left;
   }
 
   .footer {
