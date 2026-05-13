@@ -16,9 +16,9 @@ export function getInstallPlan(environment: {
     steps.push("Install Homebrew dependencies.");
   } else if (environment.platform === "win32" && environment.commands.winget) {
     manager = "winget";
-    command = "winget install yt-dlp.yt-dlp";
-    steps.push("Install yt-dlp and its FFmpeg/ffplay dependency from WinGet.");
-    note = "If ffplay is still not found after install, restart the terminal and run `claudefm doctor` again.";
+    command = "winget install yt-dlp.yt-dlp mpv.net";
+    steps.push("Install yt-dlp and mpv with WinGet.");
+    note = "Restart the terminal after installation, then run `claudefm doctor` again.";
   } else if (environment.platform === "linux" && environment.commands["apt-get"]) {
     manager = "apt";
     command = "sudo apt-get install yt-dlp mpv";
