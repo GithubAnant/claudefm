@@ -4,6 +4,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "claudefm",
   description: "Claude FM for the command line.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png" }
+    ],
+    apple: "/icon.png"
+  },
   openGraph: {
     title: "claudefm",
     description: "Claude FM for the command line."
