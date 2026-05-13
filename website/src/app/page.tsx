@@ -290,15 +290,13 @@ export default function Home() {
       </section>
 
       <footer className="footer">
-        <div>
-          <p>Built by Anant.</p>
-          <div className="footer-links">
-            {links.map(([label, href]) => (
-              <a key={href} href={href}>
-                {label}
-              </a>
-            ))}
-          </div>
+        <p>Built by Anant.</p>
+        <div className="footer-links">
+          {links.map(([label, href]) => (
+            <a key={href} href={href}>
+              {label}
+            </a>
+          ))}
         </div>
       </footer>
     </main>

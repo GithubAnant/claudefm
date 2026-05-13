@@ -422,12 +422,16 @@ kbd {
 }
 
 .footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
   padding: 72px 0 38px;
   color: var(--muted);
 }
 
 .footer p {
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .footer-links {
