@@ -4,7 +4,11 @@
 
 # claudefm
 
-Claude FM in your terminal.
+[![npm version](https://img.shields.io/npm/v/claudefm.svg)](https://www.npmjs.com/package/claudefm)
+[![license](https://img.shields.io/npm/l/claudefm.svg)](LICENSE)
+[![node](https://img.shields.io/node/v/claudefm.svg)](package.json)
+
+Claude FM in your terminal. `claudefm` plays the official Claude FM YouTube live stream with an audio-only terminal dashboard.
 
 ## Install
 
@@ -12,57 +16,109 @@ Claude FM in your terminal.
 npm install -g claudefm
 ```
 
-## Quick Start
+Requires Node.js 18 or newer.
+
+## Usage
 
 ```bash
 claudefm
 ```
 
-`claudefm` now opens an OpenAudio-style terminal player first, then launches Claude FM automatically.
+When terminal playback is ready, `claudefm` starts the stream and shows playback status, progress, volume, and controls. If local playback dependencies are missing, it can fall back to opening the stream in your browser.
 
-If terminal playback is ready, audio starts immediately and the TUI stays live with progress, status, and transport controls.
+## Controls
 
-If dependencies are missing, it falls back to opening the YouTube stream in your browser and still keeps the terminal UI up so the launch feels intentional instead of broken.
+| Key | Action |
+| --- | --- |
+| `space` | Pause or resume |
+| `left` / `right` | Seek backward or forward |
+| `h` / `l` | Seek backward or forward |
+| `+` / `=` | Volume up |
+| `-` | Volume down |
+| `o` | Open YouTube |
+| `ctrl+p` | Open settings |
+| `q` | Quit |
 
-Inside the dashboard:
+## Settings
 
-- `space` pause/resume
-- `left` / `right` seek
-- `+` / `-` volume
-- `o` open YouTube in the browser
-- `q` quit
+Press `ctrl+p` in the dashboard.
 
-## Commands
+| Setting | What it does |
+| --- | --- |
+| `Set YT stream link` | Switch to another YouTube stream URL |
+| `Select output device` | Choose an mpv audio output device |
+| `GitHub repo` | Open the project repository |
 
-```bash
-claudefm
-claudefm play
-claudefm doctor
-claudefm setup
-claudefm setup --yes
-claudefm open
-claudefm --help
-claudefm --no-ui
-```
+Use `up` / `down` or `j` / `k` to move, `enter` to select, and `esc` to go back or close.
 
 ## Requirements
+
+Terminal playback needs:
 
 - `yt-dlp`
 - `mpv` or `ffplay`
 
-## Setup Help
+`mpv` is recommended. It enables the rich dashboard controls and output-device selection. `ffplay` works as a simpler audio fallback.
 
-Use:
+Check your machine:
 
 ```bash
 claudefm doctor
+```
+
+Print setup guidance:
+
+```bash
 claudefm setup
 ```
 
-On macOS with Homebrew installed, `claudefm setup` prints:
+Run the recommended setup command:
 
 ```bash
-brew install yt-dlp mpv
+claudefm setup --yes
 ```
 
-The CLI defaults to the official Claude FM YouTube live stream and plays audio only.
+Common install commands:
+
+```bash
+# macOS
+brew install yt-dlp mpv
+
+# Debian / Ubuntu
+sudo apt-get install yt-dlp mpv
+
+# Fedora
+sudo dnf install yt-dlp mpv
+
+# Arch
+sudo pacman -S yt-dlp mpv
+
+# Windows
+winget install yt-dlp.yt-dlp
+```
+
+## Commands
+
+| Command | Description |
+| --- | --- |
+| `claudefm` | Start Claude FM |
+| `claudefm play` | Start Claude FM explicitly |
+| `claudefm open` | Open Claude FM in your browser |
+| `claudefm doctor` | Check playback dependencies |
+| `claudefm setup` | Print the recommended setup command |
+| `claudefm setup --yes` | Run the recommended setup command |
+| `claudefm --help` | Show help |
+| `claudefm --version` | Show version |
+
+Useful options:
+
+```bash
+claudefm --player mpv
+claudefm --player ffplay
+claudefm --url <youtube-url>
+claudefm --no-browser
+claudefm --no-ui
+claudefm --json
+```
+
+The default stream is the official Claude FM YouTube live stream.
