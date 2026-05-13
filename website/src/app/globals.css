@@ -267,12 +267,12 @@ code {
 
 .copy-button-copied {
   background: transparent;
-  color: #22c55e;
+  color: #39d980;
 }
 
 .copy-button-copied:hover,
 .copy-button-copied:focus-visible {
-  color: #22c55e;
+  color: #39d980;
 }
 
 .copy-icon {
@@ -304,9 +304,23 @@ code {
 }
 
 .copy-check {
-  font-size: 18px;
-  line-height: 1;
+  position: relative;
+  width: 21px;
+  height: 17px;
   animation: check-pop 260ms ease-out;
+}
+
+.copy-check::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 17px;
+  height: 9px;
+  border-left: 2.5px solid currentColor;
+  border-bottom: 2.5px solid currentColor;
+  transform: rotate(-45deg);
+  transform-origin: 45% 65%;
 }
 
 .copy-text {
