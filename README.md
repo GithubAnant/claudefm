@@ -1,6 +1,10 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/GithubAnant/claudefm/main/assets/claudefm.png" alt="Claude FM" width="494">
+</p>
+
 # claudefm
 
-Play the Claude FM YouTube live stream from your terminal.
+Claude FM in your terminal.
 
 ## Install
 
