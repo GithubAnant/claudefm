@@ -15,6 +15,8 @@ export function DemoVideo() {
         playsInline
         poster="/images/demo.png"
         preload="auto"
+        width={3388}
+        height={2160}
       >
         <source src="/demo.mp4" type="video/mp4" />
       </video>

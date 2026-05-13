@@ -365,14 +365,17 @@ code {
 }
 
 .demo-section {
-  width: min(1224px, calc((100vw - 48px) * 0.9));
-  margin-left: 50%;
+  width: fit-content;
+  max-width: calc(100vw - 48px);
+  margin: 0 auto;
   padding: 56px 0 96px;
-  transform: translateX(-50%);
 }
 
 .video-frame {
   position: relative;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 14px;
   border: 1px solid var(--line);
   background: var(--panel);
@@ -380,10 +383,10 @@ code {
 
 .demo-video {
   display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
+  width: auto;
+  max-width: 100%;
+  height: auto;
   background: #000;
-  object-fit: contain;
 }
 
 .mute-button {
@@ -538,10 +541,6 @@ kbd {
 @media (max-width: 640px) {
   .site-shell {
     width: min(100% - 28px, 1180px);
-  }
-
-  .demo-section {
-    width: min(calc((100vw - 28px) * 0.9), 1224px);
   }
 
   .nav {
