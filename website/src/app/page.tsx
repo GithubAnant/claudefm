@@ -128,7 +128,6 @@ export default function Home() {
             height={85}
             priority
           />
-          <p className="eyebrow">terminal music player for command line radio</p>
           <h1>Run ClaudeFM in your terminal.</h1>
           <p className="lede">
             A small audio-first TUI for the ClaudeFM YouTube lofi stream, with
