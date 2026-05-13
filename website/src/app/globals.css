@@ -119,19 +119,19 @@ p {
 }
 
 h1 {
-  max-width: 880px;
-  margin-bottom: 24px;
-  font-size: clamp(38px, 6vw, 76px);
-  line-height: 0.92;
-  letter-spacing: -0.045em;
+  max-width: 720px;
+  margin-bottom: 20px;
+  font-size: clamp(32px, 4.8vw, 58px);
+  line-height: 1;
+  letter-spacing: -0.035em;
 }
 
 .lede {
-  max-width: 680px;
-  margin-bottom: 34px;
+  max-width: 620px;
+  margin-bottom: 30px;
   color: var(--muted);
-  font-size: clamp(18px, 2vw, 22px);
-  line-height: 1.6;
+  font-size: clamp(15px, 1.5vw, 18px);
+  line-height: 1.55;
 }
 
 .hero-actions {
