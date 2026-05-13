@@ -393,6 +393,18 @@ kbd {
   font-size: 14px;
 }
 
+.footer-links a {
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-decoration-color: rgba(240, 138, 105, 0.45);
+  text-underline-offset: 4px;
+}
+
+.footer-links a:hover {
+  color: var(--foreground);
+  text-decoration-color: var(--foreground);
+}
+
 @media (max-width: 920px) {
   .hero,
   .product-strip,
