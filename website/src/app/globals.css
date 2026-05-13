@@ -96,9 +96,9 @@ a {
 }
 
 .hero-logo {
-  width: min(100%, 494px);
+  width: min(100%, 550px);
   height: auto;
-  margin-bottom: 34px;
+  margin: 0 0 34px -16px;
 }
 
 .eyebrow,

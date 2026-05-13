@@ -124,8 +124,8 @@ export default function Home() {
             className="hero-logo"
             src="/images/full_logo.png"
             alt="Claude FM"
-            width={494}
-            height={85}
+            width={550}
+            height={95}
             priority
           />
           <h1>Run ClaudeFM in your terminal.</h1>
