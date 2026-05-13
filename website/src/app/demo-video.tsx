@@ -36,13 +36,13 @@ export function DemoVideo() {
               stroke="currentColor"
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth="1.9"
+              strokeWidth="1.55"
             />
             <path
               d="m16.5 8.5 5 5m0-5-5 5"
               stroke="currentColor"
               strokeLinecap="round"
-              strokeWidth="2"
+              strokeWidth="1.65"
             />
           </svg>
         ) : (
@@ -57,13 +57,13 @@ export function DemoVideo() {
               stroke="currentColor"
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth="1.9"
+              strokeWidth="1.55"
             />
             <path
               d="M16.25 8.25a5.25 5.25 0 0 1 0 7.5M19 5.75a8.75 8.75 0 0 1 0 12.5"
               stroke="currentColor"
               strokeLinecap="round"
-              strokeWidth="1.9"
+              strokeWidth="1.55"
             />
           </svg>
         )}
