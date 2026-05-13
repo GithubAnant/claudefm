@@ -235,23 +235,7 @@ code {
 }
 
 .demo-section {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.62fr) minmax(0, 1fr);
-  gap: 38px;
-  align-items: center;
   padding: 96px 0;
-}
-
-.section-copy h2 {
-  margin-bottom: 18px;
-  font-size: clamp(32px, 4vw, 56px);
-  line-height: 1;
-  letter-spacing: -0.04em;
-}
-
-.section-copy p {
-  color: var(--muted);
-  line-height: 1.7;
 }
 
 .video-frame {
@@ -380,7 +364,6 @@ kbd {
 
 @media (max-width: 920px) {
   .hero,
-  .demo-section,
   .details-grid,
   .faq-list {
     grid-template-columns: 1fr;

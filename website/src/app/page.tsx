@@ -186,15 +186,6 @@ export default function Home() {
       </section>
 
       <section id="demo" className="demo-section">
-        <div className="section-copy">
-          <p className="eyebrow">demo</p>
-          <h2>See ClaudeFM running as a terminal music player.</h2>
-          <p>
-            Watch the CLI tune into the Claude FM YouTube live stream, control
-            playback, switch output devices, and keep music running without
-            opening a browser tab.
-          </p>
-        </div>
         <div className="video-frame">
           <video
             controls
