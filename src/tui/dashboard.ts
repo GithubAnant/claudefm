@@ -765,7 +765,12 @@ function paletteBodyLines(palette: CommandPaletteState, bodyWidth: number, boxWi
       modalLine("Current", "", bodyWidth, "modalHot", boxWidth),
       ...(devices.length > 0
         ? visibleDevices.flatMap((device, index) => [
-          ...(index === 1 ? [modalLine("Other devices", "", bodyWidth, "modalHot", boxWidth)] : []),
+          ...(index === 1
+            ? [
+              modalLine("", "", bodyWidth, "modal", boxWidth),
+              modalLine("Other devices", "", bodyWidth, "modalHot", boxWidth)
+            ]
+            : []),
           modalLine(
           `${index === (palette.selectedIndex ?? 0) ? "> " : "  "}${device.description}`,
           device.selected ? "active" : "enter",
