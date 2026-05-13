@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #050505;
+  --background: #030300;
   --foreground: #f4ede6;
   --muted: #a99a92;
   --dim: #6f6864;
@@ -292,7 +292,7 @@ code {
   width: 100%;
   height: 26px;
   margin-bottom: 16px;
-  background: #050505;
+  background: var(--background);
 }
 
 .progress span {
