@@ -20,7 +20,7 @@ const installCommands = [
     command: "yarn global add claudefm"
   },
   {
-    manager: "mac",
+    manager: "macOS",
     command:
       "curl -fsSL https://raw.githubusercontent.com/GithubAnant/claudefm/main/install.sh | sh"
   }
@@ -46,6 +46,7 @@ async function copyCommand(command: string) {
 export function InstallCard() {
   const [selected, setSelected] = useState(installCommands[0]);
   const [copied, setCopied] = useState<string | null>(null);
+  const isCopied = copied === selected.manager;
 
   return (
     <aside id="install" className="install-card" aria-label="Install commands">
@@ -65,17 +66,22 @@ export function InstallCard() {
           ))}
         </div>
         <button
-          className="copy-button"
+          className={isCopied ? "copy-button copy-button-copied" : "copy-button"}
           type="button"
           onClick={async () => {
-            await copyCommand(selected.command);
-            setCopied(selected.manager);
-            window.setTimeout(() => setCopied(null), 1400);
+            try {
+              await copyCommand(selected.command);
+              setCopied(selected.manager);
+              window.setTimeout(() => setCopied(null), 1400);
+            } catch {
+              setCopied(null);
+            }
           }}
           aria-label={`Copy ${selected.manager} install command`}
+          aria-live="polite"
         >
-          <span className="copy-icon" aria-hidden="true" />
-          <span className="copy-text">{copied === selected.manager ? "copied" : "copy"}</span>
+          <span className={isCopied ? "copy-icon copy-icon-check" : "copy-icon"} aria-hidden="true" />
+          <span className="copy-text">{isCopied ? "copied" : "copy"}</span>
         </button>
       </div>
 

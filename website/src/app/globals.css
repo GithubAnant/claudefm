@@ -250,6 +250,7 @@ code {
   font-size: 12px;
   font-weight: 700;
   transition:
+    background 180ms ease,
     color 180ms ease,
     transform 180ms ease;
 }
@@ -259,6 +260,16 @@ code {
   color: var(--foreground);
   outline: none;
   transform: translateY(-1px);
+}
+
+.copy-button-copied {
+  background: var(--accent);
+  color: #080807;
+}
+
+.copy-button-copied:hover,
+.copy-button-copied:focus-visible {
+  color: #080807;
 }
 
 .copy-icon {
@@ -289,6 +300,25 @@ code {
   background: #0b0b0b;
 }
 
+.copy-icon-check {
+  animation: check-pop 220ms ease-out;
+}
+
+.copy-icon-check::before {
+  display: none;
+}
+
+.copy-icon-check::after {
+  left: 3px;
+  top: 1px;
+  width: 8px;
+  height: 13px;
+  border-width: 0 3px 3px 0;
+  border-radius: 0;
+  background: transparent;
+  transform: rotate(45deg);
+}
+
 .copy-text {
   position: absolute;
   width: 1px;
@@ -296,6 +326,22 @@ code {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+@keyframes check-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.14);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .install-command {
