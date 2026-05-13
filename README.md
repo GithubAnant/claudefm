@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/GithubAnant/claudefm/main/assets/claudefm.png" alt="Claude FM" width="494">
+  <img src="https://raw.githubusercontent.com/GithubAnant/claudefm/main/assets/full_logo.png" alt="Claude FM" width="720">
 </p>
 
 # claudefm
