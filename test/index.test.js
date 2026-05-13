@@ -353,8 +353,10 @@ test("buildDashboard renders stream URL input as focused", () => {
   })));
   const plainLines = stripAnsi(output).split("\n");
 
+  assert.ok(plainLines.some((line) => line.includes("Set YT stream link") && line.includes("esc back")));
   assert.ok(plainLines.some((line) => line.includes("YouTube URL")));
   assert.ok(!plainLines.some((line) => line.includes("cmd+v paste")));
+  assert.ok(!plainLines.some((line) => line.includes("tip: rewind")));
   assert.ok(plainLines.some((line) => line.includes(CLAUDE_FM_URL) && line.includes("▌")));
 });
 
@@ -372,7 +374,8 @@ test("buildDashboard renders output device picker", () => {
   })));
   const plainLines = stripAnsi(output).split("\n");
 
-  assert.ok(plainLines.some((line) => line.includes("Select output device") && line.includes("esc")));
+  assert.ok(plainLines.some((line) => line.includes("Select output device") && line.includes("esc back")));
+  assert.ok(!plainLines.some((line) => line.includes("tip: rewind")));
   assert.ok(plainLines.some((line) => line.includes("Current")));
   assert.ok(plainLines.some((line) => line.includes("> Auto") && line.includes("active")));
   assert.ok(plainLines.some((line) => line.includes("MacBook Speakers") && line.includes("enter")));

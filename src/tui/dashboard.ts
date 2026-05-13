@@ -482,7 +482,7 @@ function handleCommandPaletteKey(state: DashboardState, key: string, actions: Co
   }
 
   if (key === ESC) {
-    state.commandPalette = undefined;
+    state.commandPalette = closeOrBackCommandPalette(state.commandPalette);
     return true;
   }
 
@@ -646,6 +646,18 @@ function handleCommandPaletteKey(state: DashboardState, key: string, actions: Co
   return true;
 }
 
+function closeOrBackCommandPalette(palette: CommandPaletteState): CommandPaletteState | undefined {
+  if (palette.mode === "menu") {
+    return undefined;
+  }
+
+  return {
+    mode: "menu",
+    input: palette.input,
+    selectedIndex: palette.mode === "devices" ? 1 : 0
+  };
+}
+
 function isActiveDeviceRequest(
   state: DashboardState,
   requestId: number
@@ -760,7 +772,7 @@ function paletteBodyLines(palette: CommandPaletteState, bodyWidth: number, boxWi
     const devices = palette.devices ?? [];
     const visibleDevices = devices.slice(0, 6);
     return [
-      modalLine("Select output device", "esc", bodyWidth, "modalTitle", boxWidth),
+      modalLine("Select output device", "esc back", bodyWidth, "modalTitle", boxWidth),
       modalLine("", "", bodyWidth, "modal", boxWidth),
       modalLine("Current", "", bodyWidth, "modalHot", boxWidth),
       ...(devices.length > 0
@@ -784,7 +796,7 @@ function paletteBodyLines(palette: CommandPaletteState, bodyWidth: number, boxWi
   }
 
   return [
-    modalLine("Set YT stream link", "esc", bodyWidth, "modalTitle", boxWidth),
+    modalLine("Set YT stream link", "esc back", bodyWidth, "modalTitle", boxWidth),
     modalLine("", "", bodyWidth, "modal", boxWidth),
     modalLine("YouTube URL", "", bodyWidth, "modalHot", boxWidth),
     modalInputLine(palette.input || "https://", bodyWidth, boxWidth),
