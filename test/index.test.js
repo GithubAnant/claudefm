@@ -341,7 +341,7 @@ test("buildDashboard renders command palette", () => {
   assert.ok(plainLines.some((line) => line.includes("Commands") && line.includes("esc")));
   assert.ok(plainLines.some((line) => line.includes("Set YT stream link") && line.includes("enter")));
   assert.ok(plainLines.some((line) => line.includes("Select output device") && line.includes("enter")));
-  assert.ok(plainLines.some((line) => line.includes("GitHub / open source") && line.includes("enter")));
+  assert.ok(plainLines.some((line) => line.includes("GitHub repo") && line.includes("enter")));
   assert.ok(plainLines.some((line) => line.includes("tip: rewind 10-15s if live audio stutters")));
 });
 
