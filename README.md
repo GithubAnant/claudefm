@@ -106,8 +106,7 @@ sudo dnf install yt-dlp mpv
 sudo pacman -S yt-dlp mpv
 
 # Windows
-winget install yt-dlp.yt-dlp
-winget install mpv.net
+winget install yt-dlp.yt-dlp mpv.net
 ```
 
 ## Commands
