@@ -170,6 +170,19 @@ h1 {
   color: #120d0b;
 }
 
+.button.secondary {
+  border-color: rgba(240, 138, 105, 0.72);
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
+  color: #120d0b;
+  box-shadow: 0 12px 34px rgba(217, 117, 88, 0.24);
+}
+
+.button.secondary:hover {
+  border-color: var(--accent-strong);
+  background: linear-gradient(180deg, #ff9b78, var(--accent-strong));
+  box-shadow: 0 16px 42px rgba(217, 117, 88, 0.34);
+}
+
 .install-card,
 .details-grid article {
   border: 1px solid var(--line);
