@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="Claude FM logo" width="96">
+  <img src="assets/logo.png" alt="Claude FM logo" width="156">
 </p>
 
 <h1 align="center">claudefm</h1>
