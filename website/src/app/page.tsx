@@ -109,7 +109,7 @@ export default function Home() {
       />
       <nav className="nav">
         <NavLink className="nav-brand" href="#top" aria-label="Claude FM home">
-          <Image src="/images/logo.png" alt="" width={42} height={28} priority />
+          <Image src="/images/logo.png" alt="" width={42} height={28} preload />
           <span>claudefm</span>
         </NavLink>
         <div className="nav-links" aria-label="Primary navigation">
@@ -127,7 +127,7 @@ export default function Home() {
             alt="Claude FM"
             width={550}
             height={95}
-            priority
+            preload
           />
           <h1>Run ClaudeFM in your terminal.</h1>
           <p className="lede">
