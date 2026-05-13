@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { InstallCard } from "./install-card";
+import { NavLink } from "./nav-link";
 
 const controls = [
   ["space", "pause or resume"],
@@ -106,13 +107,13 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <nav className="nav">
-        <a className="nav-brand" href="#top" aria-label="Claude FM home">
+        <NavLink className="nav-brand" href="#top" aria-label="Claude FM home">
           <Image src="/images/logo.png" alt="" width={42} height={28} priority />
           <span>claudefm</span>
-        </a>
+        </NavLink>
         <div className="nav-links" aria-label="Primary navigation">
-          <a href="#install">Install</a>
-          <a href="#demo">Demo</a>
+          <NavLink href="#install">Install</NavLink>
+          <NavLink href="#demo">Demo</NavLink>
           <a href="https://github.com/GithubAnant/claudefm">Repo</a>
         </div>
       </nav>
@@ -136,9 +137,6 @@ export default function Home() {
           </p>
 
           <div className="hero-actions" aria-label="Project links">
-            <a className="button primary" href="#install">
-              Install
-            </a>
             <a className="button secondary" href="https://github.com/GithubAnant/claudefm">
               View repo
             </a>

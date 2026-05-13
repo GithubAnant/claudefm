@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { copyCommand } from "./copy-command";
 
 const installCommands = [
   {
@@ -26,26 +27,10 @@ const installCommands = [
   }
 ];
 
-async function copyCommand(command: string) {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(command);
-    return;
-  }
-
-  const textarea = document.createElement("textarea");
-  textarea.value = command;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "fixed";
-  textarea.style.left = "-9999px";
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand("copy");
-  document.body.removeChild(textarea);
-}
-
 export function InstallCard() {
   const [selected, setSelected] = useState(installCommands[0]);
   const [copied, setCopied] = useState<string | null>(null);
+  const [tickKey, setTickKey] = useState(0);
   const isCopied = copied === selected.manager;
 
   return (
@@ -70,8 +55,12 @@ export function InstallCard() {
           type="button"
           onClick={async () => {
             try {
-              await copyCommand(selected.command);
+              const didCopy = await copyCommand(selected.command);
+              if (!didCopy) {
+                return;
+              }
               setCopied(selected.manager);
+              setTickKey((key) => key + 1);
               window.setTimeout(() => setCopied(null), 1400);
             } catch {
               setCopied(null);
@@ -80,7 +69,13 @@ export function InstallCard() {
           aria-label={`Copy ${selected.manager} install command`}
           aria-live="polite"
         >
-          <span className={isCopied ? "copy-icon copy-icon-check" : "copy-icon"} aria-hidden="true" />
+          {isCopied ? (
+            <span key={tickKey} className="copy-check" aria-hidden="true">
+              ✓
+            </span>
+          ) : (
+            <span className="copy-icon" aria-hidden="true" />
+          )}
           <span className="copy-text">{isCopied ? "copied" : "copy"}</span>
         </button>
       </div>
