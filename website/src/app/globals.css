@@ -30,9 +30,7 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(circle at top left, rgba(217, 117, 88, 0.12), transparent 28rem),
-    linear-gradient(180deg, #050505 0%, #090807 48%, #050505 100%);
+  background: var(--background);
   color: var(--foreground);
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Monaco, monospace;
 }
