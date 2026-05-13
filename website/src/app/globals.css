@@ -284,18 +284,12 @@ video {
   color: var(--muted);
 }
 
-.how-it-works,
 .faq-section {
   border-top: 1px solid var(--line);
   margin-top: 88px;
   padding-top: 44px;
 }
 
-.how-it-works {
-  max-width: 820px;
-}
-
-.how-it-works h2,
 .faq-section h2 {
   margin-bottom: 18px;
   font-size: clamp(28px, 3.5vw, 44px);
@@ -303,7 +297,6 @@ video {
   letter-spacing: -0.035em;
 }
 
-.how-it-works p,
 .faq-section p {
   color: var(--muted);
   line-height: 1.7;

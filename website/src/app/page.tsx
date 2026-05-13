@@ -233,16 +233,6 @@ export default function Home() {
         </article>
       </section>
 
-      <section className="how-it-works" aria-label="How ClaudeFM works">
-        <p className="eyebrow">how it works</p>
-        <h2>From npm CLI to live terminal audio.</h2>
-        <p>
-          ClaudeFM starts as a lightweight command line app, resolves the Claude
-          FM YouTube live stream with yt-dlp, and sends playback to mpv so your
-          terminal becomes a focused music player.
-        </p>
-      </section>
-
       <section className="faq-section" aria-label="ClaudeFM frequently asked questions">
         <p className="eyebrow">faq</p>
         <div className="faq-list">
