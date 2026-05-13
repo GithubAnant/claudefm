@@ -19,6 +19,14 @@
   <img src="https://raw.githubusercontent.com/GithubAnant/claudefm/main/assets/demo.png" alt="claudefm terminal dashboard demo" width="900">
 </p>
 
+## Why this exists
+
+Anthropic made Claude FM, a live stream for thinking and building. They even added `/radio` mode. The odd part is that the official path opens the stream in a browser.
+
+For an audio-only stream, that is a heavy default: a video page, browser cache, extra storage, more bandwidth, and another tab sitting around for no real reason. It felt like a strange miss from a company operating at that level.
+
+`claudefm` is the simpler path I wanted: terminal in, audio out. No browser tab required.
+
 ## Install
 
 ```bash
@@ -33,13 +41,13 @@ macOS quick install:
 curl -fsSL https://raw.githubusercontent.com/GithubAnant/claudefm/main/install.sh | sh
 ```
 
-## Usage
+## Run
 
 ```bash
 claudefm
 ```
 
-When terminal playback is ready, `claudefm` starts the stream and shows playback status, progress, volume, and controls. If local playback dependencies are missing, it can fall back to opening the stream in your browser.
+When terminal playback is ready, `claudefm` starts the stream and shows playback status, progress, volume, and controls.
 
 ## Controls
 
@@ -51,20 +59,7 @@ When terminal playback is ready, `claudefm` starts the stream and shows playback
 | `+` / `=` | Volume up |
 | `-` | Volume down |
 | `o` | Open YouTube |
-| `ctrl+p` | Open settings |
 | `q` | Quit |
-
-## Settings
-
-Press `ctrl+p` in the dashboard.
-
-| Setting | What it does |
-| --- | --- |
-| `Set YT stream link` | Switch to another YouTube stream URL |
-| `Select output device` | Choose an mpv audio output device |
-| `GitHub repo` | Open the project repository |
-
-Use `up` / `down` or `j` / `k` to move, `enter` to select, and `esc` to go back or close.
 
 ## Requirements
 
@@ -73,7 +68,7 @@ Terminal playback needs:
 - `yt-dlp`
 - `mpv` or `ffplay`
 
-`mpv` is recommended. It enables the rich dashboard controls and output-device selection. `ffplay` works as a simpler audio fallback.
+`mpv` is recommended for the full dashboard controls. `ffplay` works as a simpler audio fallback.
 
 Check your machine:
 
@@ -93,7 +88,7 @@ Run the recommended setup command:
 claudefm setup --yes
 ```
 
-Common install commands:
+Common dependency installs:
 
 ```bash
 # macOS
@@ -114,26 +109,17 @@ winget install yt-dlp.yt-dlp
 
 ## Commands
 
-| Command | Description |
+These are the supported commands exposed by the CLI:
+
+| Command | What it does |
 | --- | --- |
-| `claudefm` | Start Claude FM |
-| `claudefm play` | Start Claude FM explicitly |
+| `claudefm` | Start the terminal player |
+| `claudefm play` | Start the terminal player explicitly |
 | `claudefm open` | Open Claude FM in your browser |
 | `claudefm doctor` | Check playback dependencies |
 | `claudefm setup` | Print the recommended setup command |
 | `claudefm setup --yes` | Run the recommended setup command |
 | `claudefm --help` | Show help |
 | `claudefm --version` | Show version |
-
-Useful options:
-
-```bash
-claudefm --player mpv
-claudefm --player ffplay
-claudefm --url <youtube-url>
-claudefm --no-browser
-claudefm --no-ui
-claudefm --json
-```
 
 The default stream is the official Claude FM YouTube live stream.
