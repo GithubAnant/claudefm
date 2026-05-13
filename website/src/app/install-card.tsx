@@ -54,6 +54,10 @@ export function InstallCard() {
           className={isCopied ? "copy-button copy-button-copied" : "copy-button"}
           type="button"
           onClick={async () => {
+            if (isCopied) {
+              return;
+            }
+
             try {
               const didCopy = await copyCommand(selected.command);
               if (!didCopy) {
@@ -67,6 +71,7 @@ export function InstallCard() {
             }
           }}
           aria-label={`Copy ${selected.manager} install command`}
+          aria-disabled={isCopied}
           aria-live="polite"
         >
           {isCopied ? (

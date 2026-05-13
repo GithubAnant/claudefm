@@ -268,11 +268,15 @@ code {
 .copy-button-copied {
   background: transparent;
   color: #39d980;
+  cursor: default;
+  pointer-events: none;
 }
 
 .copy-button-copied:hover,
 .copy-button-copied:focus-visible {
   color: #39d980;
+  outline: none;
+  transform: none;
 }
 
 .copy-icon {
