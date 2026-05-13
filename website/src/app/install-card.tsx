@@ -70,9 +70,7 @@ export function InstallCard() {
           aria-live="polite"
         >
           {isCopied ? (
-            <span key={tickKey} className="copy-check" aria-hidden="true">
-              ✓
-            </span>
+            <span key={tickKey} className="copy-check" aria-hidden="true" />
           ) : (
             <span className="copy-icon" aria-hidden="true" />
           )}

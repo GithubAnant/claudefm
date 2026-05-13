@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Databuddy } from "@databuddy/sdk/react";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://claudefm.vercel.app";
@@ -92,7 +93,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Databuddy
+          clientId="0acabcc5-7803-4f41-a46f-86fe5a248f35"
+          trackInteractions={true}
+        />
+      </body>
     </html>
   );
 }

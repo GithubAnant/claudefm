@@ -14,6 +14,7 @@ import {
 import { formatDisplayTitle } from "../dist/format.js";
 import { buildDashboard } from "../dist/tui/dashboard.js";
 import { formatArtistLine } from "../dist/tui/sections.js";
+import { detectColorMode, resolveTheme } from "../dist/tui/theme.js";
 
 async function withCapturedConsole(fn) {
   const originalLog = console.log;
@@ -327,6 +328,19 @@ test("buildDashboard fits a short terminal viewport", () => {
   assert.ok(plainLines.some((line) => line.includes("o open youtube") && line.includes("ctrl+p settings")));
   assert.ok(plainLines.some((line) => line.includes("q quit")));
   assert.ok(plainLines.findIndex((line) => line.trim().length > 0) <= 1);
+});
+
+test("theme uses ansi256 colors for Apple Terminal", () => {
+  const environment = { TERM_PROGRAM: "Apple_Terminal" };
+
+  assert.equal(detectColorMode(environment), "ansi256");
+  assert.match(resolveTheme(environment).accent, /^\x1b\[38;5;/);
+});
+
+test("theme color mode can be overridden", () => {
+  assert.equal(detectColorMode({ TERM_PROGRAM: "Apple_Terminal", CLAUDEFM_COLOR_MODE: "truecolor" }), "truecolor");
+  assert.equal(detectColorMode({ CLAUDEFM_COLOR_MODE: "256" }), "ansi256");
+  assert.match(resolveTheme({ TERM_PROGRAM: "Apple_Terminal", CLAUDEFM_COLOR_MODE: "truecolor" }).accent, /^\x1b\[38;2;/);
 });
 
 test("buildDashboard renders command palette", () => {
