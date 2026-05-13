@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Claude FM",
-  description: "Music for thinking and building.",
+  title: "claudefm",
+  description: "Claude FM for the command line.",
+  openGraph: {
+    title: "claudefm",
+    description: "Claude FM for the command line."
+  }
 };
 
 export default function RootLayout({
