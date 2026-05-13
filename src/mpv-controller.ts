@@ -19,6 +19,7 @@ interface MpvMessage {
 export interface MpvAudioDevice {
   name: string;
   description: string;
+  selected?: boolean;
 }
 
 export class MpvController extends EventEmitter {
@@ -124,11 +125,15 @@ export class MpvController extends EventEmitter {
   }
 
   async listAudioDevices(): Promise<MpvAudioDevice[]> {
-    const payload = await this.send(["get_property", "audio-device-list"]);
+    const [payload, activeDevice] = await Promise.all([
+      this.send(["get_property", "audio-device-list"]),
+      this.send(["get_property", "audio-device"]).catch(() => "auto")
+    ]);
     if (!Array.isArray(payload)) {
       return [];
     }
 
+    const activeName = typeof activeDevice === "string" && activeDevice.length > 0 ? activeDevice : "auto";
     return payload.flatMap((item) => {
       if (!item || typeof item !== "object") {
         return [];
@@ -143,9 +148,10 @@ export class MpvController extends EventEmitter {
         name: record.name,
         description: typeof record.description === "string" && record.description.length > 0
           ? record.description
-          : record.name
+          : record.name,
+        selected: record.name === activeName
       }];
-    });
+    }).sort((first, second) => Number(Boolean(second.selected)) - Number(Boolean(first.selected)));
   }
 
   async selectAudioDevice(name: string): Promise<void> {

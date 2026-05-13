@@ -23,6 +23,7 @@ const ARROW_UP = "\u001b[A";
 const ARROW_DOWN = "\u001b[B";
 const ENTER_KEYS = new Set(["\r", "\n"]);
 const BACKSPACE_KEYS = new Set(["\u007f", "\b"]);
+const CLEAR_INPUT_KEYS = new Set(["\u0015", "\u000b", "\u001b\u007f"]);
 const COMMANDS = ["Set YT stream link", "Select output device"] as const;
 const RENDER_INTERVAL_MS = 500;
 let commandPaletteRequestId = 0;
@@ -532,11 +533,12 @@ function handleCommandPaletteKey(state: DashboardState, key: string, actions: Co
           }
 
           const palette = state.commandPalette;
+          const selectedIndex = selectedDeviceIndex(devices);
           state.commandPalette = {
             mode: "devices",
             input: palette.input,
             requestId,
-            selectedIndex: 0,
+            selectedIndex,
             devices,
             message: devices.length > 0 ? undefined : "no output devices found"
           };
@@ -622,10 +624,20 @@ function handleCommandPaletteKey(state: DashboardState, key: string, actions: Co
     return true;
   }
 
-  if (isPrintableInput(key)) {
+  if (CLEAR_INPUT_KEYS.has(key)) {
     state.commandPalette = {
       ...state.commandPalette,
-      input: `${state.commandPalette.input}${key}`,
+      input: "",
+      message: undefined
+    };
+    return true;
+  }
+
+  const input = textInputFromKey(key);
+  if (input) {
+    state.commandPalette = {
+      ...state.commandPalette,
+      input: `${state.commandPalette.input}${input}`,
       message: undefined
     };
   }
@@ -644,8 +656,21 @@ function wrapIndex(index: number, length: number): number {
   return ((index % length) + length) % length;
 }
 
-function isPrintableInput(key: string): boolean {
-  return key.length === 1 && key >= " " && key !== "\u007f";
+function selectedDeviceIndex(devices: MpvAudioDevice[]): number {
+  return Math.max(0, devices.findIndex((device) => device.selected));
+}
+
+function textInputFromKey(key: string): string {
+  const bracketedPaste = /^\u001b\[200~([\s\S]*)\u001b\[201~$/.exec(key);
+  const value = bracketedPaste ? bracketedPaste[1] : key;
+
+  if (!bracketedPaste && value.includes(ESC)) {
+    return "";
+  }
+
+  return Array.from(value)
+    .filter((character) => character >= " " && character !== "\u007f")
+    .join("");
 }
 
 function isSupportedStreamUrl(value: string): boolean {
@@ -724,18 +749,22 @@ function paletteBodyLines(palette: CommandPaletteState, bodyWidth: number, boxWi
 
   if (palette.mode === "devices") {
     const devices = palette.devices ?? [];
+    const visibleDevices = devices.slice(0, 6);
     return [
       modalLine("Select output device", "esc", bodyWidth, "modalTitle", boxWidth),
       modalLine("", "", bodyWidth, "modal", boxWidth),
-      modalLine("Devices", "", bodyWidth, "modalHot", boxWidth),
+      modalLine("Current", "", bodyWidth, "modalHot", boxWidth),
       ...(devices.length > 0
-        ? devices.slice(0, 6).map((device, index) => modalLine(
+        ? visibleDevices.flatMap((device, index) => [
+          ...(index === 1 ? [modalLine("Other devices", "", bodyWidth, "modalHot", boxWidth)] : []),
+          modalLine(
           `${index === (palette.selectedIndex ?? 0) ? "> " : "  "}${device.description}`,
-          "enter",
+          device.selected ? "active" : "enter",
           bodyWidth,
           index === (palette.selectedIndex ?? 0) ? "modalHot" : "modal",
           boxWidth
-        ))
+          )
+        ])
         : [modalLine(palette.message ?? "loading devices...", "", bodyWidth, "modalMuted", boxWidth)])
     ];
   }
@@ -743,8 +772,8 @@ function paletteBodyLines(palette: CommandPaletteState, bodyWidth: number, boxWi
   return [
     modalLine("Set YT stream link", "esc", bodyWidth, "modalTitle", boxWidth),
     modalLine("", "", bodyWidth, "modal", boxWidth),
-    modalLine("YouTube URL", "", bodyWidth, "modalHot", boxWidth),
-    modalLine(`> ${palette.input || "https://"}`, "", bodyWidth, "modal", boxWidth),
+    modalLine("YouTube URL", "cmd+v paste", bodyWidth, "modalHot", boxWidth),
+    modalInputLine(palette.input || "https://", bodyWidth, boxWidth),
     modalLine(palette.message ?? "enter to apply", "", bodyWidth, palette.message ? "modalHot" : "modalMuted", boxWidth)
   ];
 }
@@ -760,6 +789,30 @@ function modalLine(
   return {
     text: `   ${text}`,
     variant,
+    boxWidth
+  };
+}
+
+function modalInputLine(value: string, width: number, boxWidth: number): ScreenLine {
+  const inputWidth = Math.max(1, width - 2);
+  const input = value.length > inputWidth - 2
+    ? value.slice(Math.max(0, value.length - inputWidth + 5))
+    : value;
+  const fieldText = ` ${input}${THEME.accent}▌${THEME.text}`;
+  const fittedField = `${fieldText}${" ".repeat(Math.max(0, inputWidth - input.length - 2))}`;
+  const styledText = [
+    "   ",
+    THEME.panel,
+    THEME.text,
+    fittedField,
+    THEME.panelAlt,
+    " ".repeat(Math.max(0, boxWidth - inputWidth - 3))
+  ].join("");
+
+  return {
+    text: `   ${value}`,
+    styledText,
+    variant: "modalInput",
     boxWidth
   };
 }

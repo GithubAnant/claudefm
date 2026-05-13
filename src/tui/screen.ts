@@ -5,6 +5,7 @@ export type LineVariant =
   | "blank"
   | "logo"
   | "modal"
+  | "modalInput"
   | "modalTitle"
   | "modalHot"
   | "modalMuted"
@@ -142,6 +143,7 @@ export function paintLine(line: ScreenLine, width: number, columns: number, left
 
   if (
     line.variant === "modal" ||
+    line.variant === "modalInput" ||
     line.variant === "modalTitle" ||
     line.variant === "modalHot" ||
     line.variant === "modalMuted"
@@ -156,8 +158,9 @@ export function paintLine(line: ScreenLine, width: number, columns: number, left
         : line.variant === "modalMuted"
           ? THEME.muted
           : THEME.text;
+    const content = line.styledText ?? fit(line.text, boxWidth);
 
-    return `${THEME.canvas}${" ".repeat(modalLeftPad)}${THEME.panelAlt}${foreground}${fit(line.text, boxWidth)}${THEME.canvas}${" ".repeat(modalRightPad)}${RESET}`;
+    return `${THEME.canvas}${" ".repeat(modalLeftPad)}${THEME.panelAlt}${foreground}${content}${THEME.canvas}${" ".repeat(modalRightPad)}${RESET}`;
   }
 
   if (line.variant === "panel" || line.variant === "panelTitle") {
