@@ -87,7 +87,6 @@ export default function Home() {
         <aside id="install" className="install-card" aria-label="Install commands">
           <div className="install-card-header">
             <span>install</span>
-            <span>node 18+</span>
           </div>
           <div className="install-list">
             {installCommands.map((item) => (
