@@ -229,7 +229,7 @@ test("playStream launches mpv when available", async () => {
   assert.equal(invocations.at(-1)[0], "mpv");
 });
 
-test("playStream falls back to browser when terminal deps are missing", async () => {
+test("playStream prints setup guidance when terminal deps are missing", async () => {
   const invocations = [];
   const runner = {
     run(command, args = []) {
@@ -243,18 +243,6 @@ test("playStream falls back to browser when terminal deps are missing", async ()
         };
       }
 
-      if (command === "yt-dlp") {
-        return {
-          status: 0,
-          stdout: "YmQ7jRgf4f0\n",
-          stderr: ""
-        };
-      }
-
-      if (command === "open") {
-        return { status: 0, stdout: "", stderr: "" };
-      }
-
       throw new Error(`Unexpected command: ${command}`);
     }
   };
@@ -263,9 +251,12 @@ test("playStream falls back to browser when terminal deps are missing", async ()
     playStream({ player: undefined, url: CLAUDE_FM_URL, browser: true }, runner, "darwin")
   );
 
-  assert.equal(result, 0);
-  assert.match(logs[0], /Terminal playback dependencies are missing/);
-  assert.equal(invocations.at(-1)[0], "open");
+  assert.equal(result, 1);
+  assert.match(logs[0], /Terminal playback is not ready/);
+  assert.match(logs.join("\n"), /Missing: yt-dlp, mpv or ffplay/);
+  assert.match(logs.join("\n"), /Run this first: brew install yt-dlp mpv/);
+  assert.match(logs.join("\n"), /To open YouTube intentionally, run: claudefm open/);
+  assert.equal(invocations.some(([command]) => command === "open"), false);
 });
 
 test("runSetup prints the recommended command", async () => {

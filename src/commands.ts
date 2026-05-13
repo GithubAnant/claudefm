@@ -87,12 +87,30 @@ export function runSetup(
 
 export function printPlayFallback(environment: EnvironmentInfo): void {
   console.log("Terminal playback is not ready on this machine.");
+  console.log(`Missing: ${formatMissingDependencies(environment)}.`);
 
   if (environment.installPlan.command) {
     console.log(`Run this first: ${environment.installPlan.command}`);
   } else {
     console.log(environment.installPlan.steps[0]);
   }
+
+  console.log("Then rerun: claudefm");
+  console.log("To open YouTube intentionally, run: claudefm open");
+}
+
+function formatMissingDependencies(environment: EnvironmentInfo): string {
+  const missing: string[] = [];
+
+  if (!environment.commands["yt-dlp"]) {
+    missing.push("yt-dlp");
+  }
+
+  if (!environment.commands.mpv && !environment.commands.ffplay) {
+    missing.push("mpv or ffplay");
+  }
+
+  return missing.join(", ");
 }
 
 export function playStream(
@@ -103,19 +121,8 @@ export function playStream(
   const environment = inspectEnvironment(runner, platform);
 
   if (!environment.canPlayTerminal) {
-    if (options.browser && environment.commands.open) {
-      console.log("Terminal playback dependencies are missing.");
-      console.log("Opening Claude FM in your browser instead...");
-      printPlayFallback(environment);
-      openInBrowser(options.url, runner, platform);
-      return 0;
-    }
-
-    if (!environment.commands["yt-dlp"]) {
-      throw new Error("yt-dlp is required to play the stream.");
-    }
-
-    throw new Error("A supported player is required to play the stream.");
+    printPlayFallback(environment);
+    return 1;
   }
 
   const resolvedPlayer = resolvePlayer(options.player, environment);

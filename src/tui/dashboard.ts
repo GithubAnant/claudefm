@@ -49,7 +49,7 @@ export async function runDashboard(
     browserEnabled,
     canUseRichPlayer: environment.commands.mpv,
     installCommand: environment.installPlan.command,
-    playerLabel: environment.preferredPlayer ?? (browserEnabled ? "browser" : "none"),
+    playerLabel: environment.preferredPlayer ?? "none",
     url: options.url
   };
   const openBrowser = () => openInBrowser(state.url, runner, platform) === 0;
@@ -72,13 +72,6 @@ export async function runDashboard(
       browserEnabled ? openBrowser : undefined,
       environment.commands.open ? openProject : undefined
     );
-  }
-
-  if (browserEnabled && openBrowser()) {
-    state.status = "BROWSER";
-    state.headline = "Claude FM";
-    state.detail = "Opened in YouTube because terminal playback is missing.";
-    return await holdStaticDashboard(state, browserEnabled ? openBrowser : undefined, openProject);
   }
 
   state.status = "ERROR";

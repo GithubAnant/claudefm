@@ -18,7 +18,7 @@ export function printHelp(): void {
   console.log("  --json          Print machine-readable JSON.");
   console.log("  --print         Print the setup command instead of running it.");
   console.log("  --yes           Run the setup command immediately.");
-  console.log("  --no-browser    Do not fall back to opening the browser.");
+  console.log("  --no-browser    Hide browser handoff controls.");
   console.log("  --no-ui         Skip the Claude FM terminal player.");
 }
 

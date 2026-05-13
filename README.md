@@ -48,6 +48,9 @@ claudefm
 
 When terminal playback is ready, `claudefm` starts the stream and shows playback status, progress, volume, and controls.
 
+If playback dependencies are missing, `claudefm` prints the setup command to run and exits instead of silently opening YouTube.
+Use `claudefm open` when you intentionally want the browser version.
+
 ## Controls
 
 | Key | Action |
