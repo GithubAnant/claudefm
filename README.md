@@ -1,14 +1,23 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/GithubAnant/claudefm/main/assets/full_logo.png" alt="Claude FM" width="720">
+  <img src="https://raw.githubusercontent.com/GithubAnant/claudefm/main/assets/logo.png" alt="Claude FM logo" width="96">
 </p>
 
-# claudefm
+<h1 align="center">claudefm</h1>
 
-[![npm version](https://img.shields.io/npm/v/claudefm.svg)](https://www.npmjs.com/package/claudefm)
-[![license](https://img.shields.io/npm/l/claudefm.svg)](LICENSE)
-[![node](https://img.shields.io/node/v/claudefm.svg)](package.json)
+<p align="center">
+  Claude FM in your terminal. Audio-only playback for the official Claude FM YouTube live stream.
+</p>
 
-Claude FM in your terminal. `claudefm` plays the official Claude FM YouTube live stream with an audio-only terminal dashboard.
+<p align="center">
+  <a href="https://www.npmjs.com/package/claudefm"><img alt="npm" src="https://img.shields.io/npm/v/claudefm?style=for-the-badge&logo=npm&logoColor=white&color=CB3837"></a>
+  <a href="https://www.npmjs.com/package/claudefm"><img alt="downloads" src="https://img.shields.io/npm/dm/claudefm?style=for-the-badge&logo=npm&logoColor=white&color=2F855A"></a>
+  <a href="https://nodejs.org/"><img alt="node" src="https://img.shields.io/node/v/claudefm?style=for-the-badge&logo=node.js&logoColor=white&color=43853D"></a>
+  <a href="https://github.com/GithubAnant/claudefm/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/npm/l/claudefm?style=for-the-badge&color=111827"></a>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/GithubAnant/claudefm/main/assets/demo.png" alt="claudefm terminal dashboard demo" width="900">
+</p>
 
 ## Install
 
@@ -17,6 +26,12 @@ npm install -g claudefm
 ```
 
 Requires Node.js 18 or newer.
+
+macOS quick install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/GithubAnant/claudefm/main/install.sh | sh
+```
 
 ## Usage
 
