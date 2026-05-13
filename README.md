@@ -11,7 +11,6 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/claudefm"><img alt="npm" src="https://img.shields.io/npm/v/claudefm?style=for-the-badge&logo=npm&logoColor=white&color=CB3837"></a>
   <a href="https://www.npmjs.com/package/claudefm"><img alt="downloads" src="https://img.shields.io/npm/dm/claudefm?style=for-the-badge&logo=npm&logoColor=white&color=2F855A"></a>
-  <a href="https://nodejs.org/"><img alt="node" src="https://img.shields.io/node/v/claudefm?style=for-the-badge&logo=node.js&logoColor=white&color=43853D"></a>
   <a href="https://github.com/GithubAnant/claudefm/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/npm/l/claudefm?style=for-the-badge&color=111827"></a>
 </p>
 
