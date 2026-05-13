@@ -27,7 +27,6 @@ export interface ScreenLine {
   leftWidth?: number;
   rightText?: string;
   rightWidth?: number;
-  logoFmStart?: number;
 }
 
 export function fit(text: string, width: number): string {
@@ -174,18 +173,6 @@ export function paintLine(line: ScreenLine, width: number, columns: number, left
 
   if (line.variant === "blank" || line.text.trim().length === 0) {
     return paintBlankLine(columns);
-  }
-
-  if (line.variant === "logo" && line.logoFmStart !== undefined) {
-    return [
-      THEME.canvas,
-      " ".repeat(leftPad),
-      THEME.accent,
-      padded,
-      THEME.canvas,
-      " ".repeat(rightPad),
-      RESET
-    ].join("");
   }
 
   const foreground = line.variant === "logo"
