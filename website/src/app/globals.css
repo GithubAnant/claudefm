@@ -394,7 +394,7 @@ code {
   height: 42px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(224, 118, 79, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
   color: var(--ink);
   background: rgba(11, 11, 11, 0.72);
@@ -406,15 +406,16 @@ code {
 }
 
 .mute-button:hover {
-  border-color: var(--accent);
+  border-color: rgba(255, 255, 255, 0.28);
   background: rgba(11, 11, 11, 0.88);
   transform: translateY(-1px);
 }
 
 .speaker-icon {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: block;
+  transform: translateX(-1.5px);
 }
 
 .details-grid {

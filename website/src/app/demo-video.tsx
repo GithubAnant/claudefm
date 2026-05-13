@@ -32,16 +32,17 @@ export function DemoVideo() {
             viewBox="0 0 24 24"
           >
             <path
-              d="M4 9.75h3.2L12.5 5.5v13l-5.3-4.25H4v-4.5Z"
-              stroke="currentColor"
-              strokeLinejoin="round"
-              strokeWidth="1.8"
-            />
-            <path
-              d="m17 9 4 4m0-4-4 4"
+              d="M3.5 10.25h4l5.25-4.5v12.5l-5.25-4.5h-4v-3.5Z"
               stroke="currentColor"
               strokeLinecap="round"
-              strokeWidth="1.8"
+              strokeLinejoin="round"
+              strokeWidth="1.9"
+            />
+            <path
+              d="m16.5 8.5 5 5m0-5-5 5"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeWidth="2"
             />
           </svg>
         ) : (
@@ -52,16 +53,17 @@ export function DemoVideo() {
             viewBox="0 0 24 24"
           >
             <path
-              d="M4 9.75h3.2L12.5 5.5v13l-5.3-4.25H4v-4.5Z"
-              stroke="currentColor"
-              strokeLinejoin="round"
-              strokeWidth="1.8"
-            />
-            <path
-              d="M16 8.25a5 5 0 0 1 0 7.5M18.75 5.5a8.75 8.75 0 0 1 0 13"
+              d="M3.5 10.25h4l5.25-4.5v12.5l-5.25-4.5h-4v-3.5Z"
               stroke="currentColor"
               strokeLinecap="round"
-              strokeWidth="1.8"
+              strokeLinejoin="round"
+              strokeWidth="1.9"
+            />
+            <path
+              d="M16.25 8.25a5.25 5.25 0 0 1 0 7.5M19 5.75a8.75 8.75 0 0 1 0 12.5"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeWidth="1.9"
             />
           </svg>
         )}
