@@ -294,8 +294,8 @@ code {
 
 .copy-icon {
   position: relative;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 
 .copy-icon::before,
@@ -309,16 +309,16 @@ code {
 .copy-icon::before {
   left: 2px;
   top: 1px;
-  width: 13px;
-  height: 15px;
+  width: 12px;
+  height: 14px;
   opacity: 0.8;
 }
 
 .copy-icon::after {
-  left: 7px;
-  top: 7px;
-  width: 14px;
-  height: 15px;
+  left: 6px;
+  top: 6px;
+  width: 13px;
+  height: 14px;
   border: 2px solid currentColor;
   background: #0b0b0b;
 }

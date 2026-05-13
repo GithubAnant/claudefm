@@ -21,7 +21,7 @@ const installCommands = [
     command: "yarn global add claudefm"
   },
   {
-    manager: "macOS",
+    manager: "curl",
     command:
       "curl -fsSL https://raw.githubusercontent.com/GithubAnant/claudefm/main/install.sh | sh"
   }
