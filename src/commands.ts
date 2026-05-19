@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import { printHelp, parseArgs } from "./args.js";
 import { VERSION } from "./constants.js";
 import { inspectEnvironment } from "./environment.js";
@@ -5,6 +6,8 @@ import { openInBrowser, playWithFfplay, playWithMpv, resolvePlayer } from "./pla
 import { createCommandRunner } from "./system.js";
 import { runDashboard, shouldUseDashboard } from "./tui.js";
 import type { CommandRunner, EnvironmentInfo, ParsedArgs, Platform } from "./types.js";
+
+const PLAYBACK_RETRY_DELAYS_MS = [2000, 5000, 10000];
 
 export function printDoctor(environment: EnvironmentInfo): void {
   const lines = [
@@ -113,11 +116,11 @@ function formatMissingDependencies(environment: EnvironmentInfo): string {
   return missing.join(", ");
 }
 
-export function playStream(
+export async function playStream(
   options: Pick<ParsedArgs, "player" | "url" | "browser">,
   runner: CommandRunner,
   platform: Platform = process.platform
-): number {
+): Promise<number> {
   const environment = inspectEnvironment(runner, platform);
 
   if (!environment.canPlayTerminal) {
@@ -130,10 +133,33 @@ export function playStream(
   console.log(`Starting Claude FM with ${resolvedPlayer}...`);
 
   if (resolvedPlayer === "mpv") {
-    return playWithMpv(options.url, runner);
+    return await playWithMpvWithRetry(options.url, runner);
   }
 
   return playWithFfplay(options.url, runner);
+}
+
+async function playWithMpvWithRetry(streamUrl: string, runner: CommandRunner): Promise<number> {
+  let lastCode = playWithMpv(streamUrl, runner);
+
+  if (lastCode === 0) {
+    return 0;
+  }
+
+  for (const [index, waitMs] of PLAYBACK_RETRY_DELAYS_MS.entries()) {
+    console.log(
+      `mpv exited with code ${lastCode}. Retrying in ${Math.round(waitMs / 1000)}s (${index + 1}/${PLAYBACK_RETRY_DELAYS_MS.length})...`
+    );
+    await delay(waitMs);
+    lastCode = playWithMpv(streamUrl, runner);
+
+    if (lastCode === 0) {
+      return 0;
+    }
+  }
+
+  console.log("Playback stopped after retry attempts.");
+  return lastCode;
 }
 
 export function runOpen(
@@ -181,7 +207,7 @@ export async function run(
           return await runDashboard(parsed, runner, platform);
         }
 
-        return playStream(parsed, runner, platform);
+        return await playStream(parsed, runner, platform);
     }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

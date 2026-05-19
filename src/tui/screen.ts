@@ -200,6 +200,7 @@ export function panelForeground(text: string, isTitle: boolean): string {
     trimmed.startsWith("ERROR") ||
     trimmed.startsWith("PLAYING") ||
     trimmed.startsWith("STARTING") ||
+    trimmed.startsWith("RETRYING") ||
     trimmed.startsWith("BUFFERING")
   ) {
     return THEME.accent;

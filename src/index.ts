@@ -1,4 +1,4 @@
-export { CLAUDE_FM_URL, SUPPORTED_PLAYERS, VERSION } from "./constants.js";
+export { CLAUDE_FM_SEARCH_LOCATOR, CLAUDE_FM_URL, SUPPORTED_PLAYERS, VERSION } from "./constants.js";
 export { parseArgs, printHelp } from "./args.js";
 export { getInstallPlan, inspectEnvironment } from "./environment.js";
 export { formatClock, renderBar, summarizeRuntime } from "./format.js";
@@ -9,8 +9,10 @@ export {
   launchFfplay,
   launchMpv,
   openInBrowser,
+  checkStreamAvailability,
   playWithFfplay,
   playWithMpv,
+  resolveAvailableStream,
   resolveAudioUrl,
   resolvePlayer,
   resolveWatchUrl
@@ -40,5 +42,7 @@ export type {
   PlayerStatus,
   Platform,
   RunOptions,
+  StreamAvailability,
+  StreamAvailabilityStatus,
   SupportedPlayer
 } from "./types.js";

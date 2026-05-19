@@ -1,10 +1,11 @@
 import process from "node:process";
 import { clearScreenDown, cursorTo } from "node:readline";
+import { setTimeout as delay } from "node:timers/promises";
 import { inspectEnvironment } from "../environment.js";
 import { formatClock, formatDisplayTitle, renderBar } from "../format.js";
 import { MpvController, type MpvAudioDevice } from "../mpv-controller.js";
-import { openInBrowser, playWithFfplay } from "../player.js";
-import type { CommandRunner, MpvRuntimeState, ParsedArgs, Platform } from "../types.js";
+import { openInBrowser, playWithFfplay, resolveAvailableStream, resolvePlayer } from "../player.js";
+import type { CommandRunner, EnvironmentInfo, MpvRuntimeState, ParsedArgs, Platform } from "../types.js";
 import { blankLines, centerText, paintScreen, type ScreenLine, wrapText } from "./screen.js";
 import {
   controlLines,
@@ -28,6 +29,7 @@ const COMMANDS = ["Set YT stream link", "Select output device", "GitHub repo"] a
 const PROJECT_URL = "https://github.com/GithubAnant/claudefm";
 const SETTINGS_TIP = "tip: rewind 10-15s if live audio stutters";
 const RENDER_INTERVAL_MS = 500;
+const RETRY_DELAYS_MS = [2000, 5000, 10000];
 let commandPaletteRequestId = 0;
 
 export function shouldUseDashboard(options: Pick<ParsedArgs, "json" | "ui">): boolean {
@@ -41,77 +43,74 @@ export async function runDashboard(
 ): Promise<number> {
   const environment = inspectEnvironment(runner, platform);
   const browserEnabled = options.browser && environment.commands.open;
+  const resolvedPlayer = environment.canPlayTerminal
+    ? resolvePlayer(options.player, environment)
+    : null;
   const state: DashboardState = {
     status: "STARTING",
     headline: "Claude FM",
     detail: "Connecting to the live stream.",
     runtime: { ...EMPTY_PLAYER, title: "Claude FM" },
     browserEnabled,
-    canUseRichPlayer: environment.commands.mpv,
+    canUseRichPlayer: resolvedPlayer === "mpv",
     installCommand: environment.installPlan.command,
-    playerLabel: environment.preferredPlayer ?? "none",
+    playerLabel: resolvedPlayer ?? environment.preferredPlayer ?? "none",
     url: options.url
   };
   const openBrowser = () => openInBrowser(state.url, runner, platform) === 0;
   const openProject = () => openInBrowser(PROJECT_URL, runner, platform) === 0;
 
-  if (environment.commands.mpv) {
+  if (!environment.canPlayTerminal) {
+    state.status = "ERROR";
+    state.detail = environment.installPlan.command
+      ? `Run ${environment.installPlan.command} to unlock full terminal playback.`
+      : environment.installPlan.steps[0];
+    state.error = formatTerminalPlaybackSetupError(environment);
+    return await holdStaticDashboard(
+      state,
+      browserEnabled ? openBrowser : undefined,
+      environment.commands.open ? openProject : undefined
+    );
+  }
+
+  if (resolvedPlayer === "mpv") {
     return await runRichDashboard(
       state,
       options.url,
-      browserEnabled ? openBrowser : undefined,
-      environment.commands.open ? openProject : undefined
-    );
-  }
-
-  if (environment.canPlayTerminal) {
-    return await runLegacyDashboard(
-      state,
       runner,
-      options.url,
       browserEnabled ? openBrowser : undefined,
       environment.commands.open ? openProject : undefined
     );
   }
 
-  state.status = "ERROR";
-  state.detail = environment.installPlan.command
-    ? `Run ${environment.installPlan.command} to unlock full terminal playback.`
-    : environment.installPlan.steps[0];
-  state.error = "Terminal playback is unavailable on this machine.";
-  return await holdStaticDashboard(
+  return await runLegacyDashboard(
     state,
+    runner,
+    options.url,
     browserEnabled ? openBrowser : undefined,
     environment.commands.open ? openProject : undefined
   );
 }
 
+function formatTerminalPlaybackSetupError(environment: EnvironmentInfo): string {
+  if (environment.installPlan.command) {
+    return `Terminal playback is unavailable on this machine. Run ${environment.installPlan.command}, then run claudefm doctor.`;
+  }
+
+  return `Terminal playback is unavailable on this machine. ${environment.installPlan.steps[0]} Then run claudefm doctor.`;
+}
+
 async function runRichDashboard(
   state: DashboardState,
   streamUrl: string,
+  runner: CommandRunner,
   openBrowser?: () => boolean,
   openProject?: () => boolean
 ): Promise<number> {
-  const controller = new MpvController();
+  let controller: MpvController;
 
   try {
-    controller.on("state", (nextState: MpvRuntimeState) => {
-      state.runtime = nextState;
-      state.status = nextState.status.toUpperCase();
-      state.headline = formatDisplayTitle(nextState.title);
-      state.detail = describeRuntime(nextState);
-    });
-
-    controller.on("exit", () => {
-      state.status = "STOPPED";
-      state.detail = "Playback stopped.";
-    });
-
-    await controller.start(streamUrl);
-    state.runtime = controller.snapshot;
-    state.status = state.runtime.status.toUpperCase();
-    state.headline = formatDisplayTitle(state.runtime.title);
-    state.detail = describeRuntime(state.runtime);
+    controller = await startRichPlayback(state, streamUrl, runner);
   } catch (error) {
     state.status = "ERROR";
     state.runtime = { ...state.runtime, status: "idle" };
@@ -122,7 +121,48 @@ async function runRichDashboard(
     return await holdStaticDashboard(state, openBrowser, openProject);
   }
 
-  return await holdInteractiveDashboard(state, controller, openBrowser, openProject);
+  return await holdInteractiveDashboard(state, controller, runner, openBrowser, openProject);
+}
+
+async function startRichPlayback(
+  state: DashboardState,
+  streamUrl: string,
+  runner: CommandRunner
+): Promise<MpvController> {
+  state.status = "STARTING";
+  state.runtime = { ...state.runtime, status: "starting" };
+  state.detail = "Checking YouTube stream availability.";
+  state.error = undefined;
+  const availability = resolveAvailableStream(streamUrl, runner);
+  const controller = new MpvController();
+
+  if (availability.fallbackUsed) {
+    state.url = availability.url;
+    state.detail = "Default stream moved. Using the current Claude FM result.";
+  } else {
+    state.url = availability.url;
+    state.detail = "Connecting to the live stream.";
+  }
+
+  controller.on("state", (nextState: MpvRuntimeState) => {
+    state.runtime = nextState;
+    state.status = nextState.status.toUpperCase();
+    state.headline = formatDisplayTitle(nextState.title);
+    state.detail = describeRuntime(nextState);
+  });
+
+  try {
+    await controller.start(availability.url);
+  } catch (error) {
+    await controller.destroy().catch(() => undefined);
+    throw error;
+  }
+
+  state.runtime = controller.snapshot;
+  state.status = state.runtime.status.toUpperCase();
+  state.headline = formatDisplayTitle(state.runtime.title);
+  state.detail = describeRuntime(state.runtime);
+  return controller;
 }
 
 async function runLegacyDashboard(
@@ -146,7 +186,8 @@ async function runLegacyDashboard(
 
 async function holdInteractiveDashboard(
   state: DashboardState,
-  controller: MpvController,
+  initialController: MpvController,
+  runner: CommandRunner,
   openBrowser?: () => boolean,
   openProject?: () => boolean
 ): Promise<number> {
@@ -155,6 +196,9 @@ async function holdInteractiveDashboard(
   const cleanupTasks = new Set<() => void>();
   let finished = false;
   let renderTimer: NodeJS.Timeout | undefined;
+  let controller: MpvController | null = initialController;
+  let retrying = false;
+  let retryCount = 0;
 
   const cleanup = async () => {
     cleanupTasks.forEach((task) => task());
@@ -163,7 +207,7 @@ async function holdInteractiveDashboard(
       clearInterval(renderTimer);
     }
     exitScreen();
-    await controller.destroy().catch(() => undefined);
+    await controller?.destroy().catch(() => undefined);
   };
 
   enterScreen();
@@ -186,17 +230,91 @@ async function holdInteractiveDashboard(
       state.error = error instanceof Error ? error.message : String(error);
     };
 
+    const withController = (): MpvController | null => {
+      if (controller) {
+        return controller;
+      }
+
+      state.error = "Playback is not running.";
+      render(state, { force: true });
+      return null;
+    };
+
+    const attachExitHandler = (nextController: MpvController) => {
+      nextController.once("exit", () => {
+        void handleUnexpectedExit();
+      });
+    };
+
+    const handleUnexpectedExit = async () => {
+      if (finished || retrying) {
+        return;
+      }
+
+      controller = null;
+      retrying = true;
+
+      while (!finished && retryCount < RETRY_DELAYS_MS.length) {
+        const waitMs = RETRY_DELAYS_MS[retryCount];
+        retryCount += 1;
+        state.status = "RETRYING";
+        state.runtime = { ...state.runtime, status: "starting" };
+        state.detail = `Playback stopped. Retrying in ${Math.round(waitMs / 1000)}s.`;
+        state.error = `mpv exited unexpectedly. Retry ${retryCount}/${RETRY_DELAYS_MS.length}.`;
+        render(state, { force: true });
+
+        await delay(waitMs);
+        if (finished) {
+          return;
+        }
+
+        try {
+          const nextController = await startRichPlayback(state, state.url, runner);
+          controller = nextController;
+          retrying = false;
+          attachExitHandler(nextController);
+          render(state, { force: true });
+          return;
+        } catch (error) {
+          state.error = formatPlaybackError(error);
+          render(state, { force: true });
+        }
+      }
+
+      retrying = false;
+      state.status = "ERROR";
+      state.runtime = { ...state.runtime, status: "idle" };
+      state.detail = "Playback stopped after retry attempts. Press q to quit.";
+      state.error = "Could not restore playback.";
+      render(state, { force: true });
+    };
+
     const handleSetStreamUrl = async (nextUrl: string) => {
       state.url = nextUrl;
       state.error = undefined;
       state.status = "STARTING";
       state.headline = "Loading stream";
       state.detail = "Switching stream link.";
-      await controller.loadUrl(nextUrl);
+      const activeController = withController();
+      if (!activeController) {
+        return;
+      }
+
+      const availability = resolveAvailableStream(nextUrl, runner);
+      state.url = availability.url;
+      await activeController.loadUrl(availability.url);
     };
-    const handleListAudioDevices = () => controller.listAudioDevices();
+    const handleListAudioDevices = () => {
+      const activeController = withController();
+      return activeController ? activeController.listAudioDevices() : Promise.resolve([]);
+    };
     const handleSelectAudioDevice = async (device: MpvAudioDevice) => {
-      await controller.selectAudioDevice(device.name);
+      const activeController = withController();
+      if (!activeController) {
+        return;
+      }
+
+      await activeController.selectAudioDevice(device.name);
       state.detail = `Output device set to ${device.description}.`;
     };
 
@@ -226,27 +344,27 @@ async function holdInteractiveDashboard(
       }
 
       if (key === " ") {
-        void controller.togglePause().catch(reportError);
+        void withController()?.togglePause().catch(reportError);
         return;
       }
 
       if (key === "\u001b[D" || key === "h") {
-        void controller.seek(-5).catch(reportError);
+        void withController()?.seek(-5).catch(reportError);
         return;
       }
 
       if (key === "\u001b[C" || key === "l") {
-        void controller.seek(5).catch(reportError);
+        void withController()?.seek(5).catch(reportError);
         return;
       }
 
       if (key === "+" || key === "=") {
-        void controller.changeVolume(5).catch(reportError);
+        void withController()?.changeVolume(5).catch(reportError);
         return;
       }
 
       if (key === "-") {
-        void controller.changeVolume(-5).catch(reportError);
+        void withController()?.changeVolume(-5).catch(reportError);
       }
     };
 
@@ -267,14 +385,12 @@ async function holdInteractiveDashboard(
 
     const handleSigInt = () => void finish(0);
     const handleSigTerm = () => void finish(0);
-    const handleExit = () => void finish(0);
     process.once("SIGINT", handleSigInt);
     process.once("SIGTERM", handleSigTerm);
-    controller.once("exit", handleExit);
+    attachExitHandler(initialController);
     cleanupTasks.add(() => {
       process.off("SIGINT", handleSigInt);
       process.off("SIGTERM", handleSigTerm);
-      controller.off("exit", handleExit);
     });
   });
 }

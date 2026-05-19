@@ -2,6 +2,14 @@ export type SupportedPlayer = "mpv" | "ffplay";
 export type CliCommand = "play" | "doctor" | "setup" | "open";
 export type Platform = NodeJS.Platform;
 export type PlayerStatus = "idle" | "starting" | "playing" | "paused" | "buffering";
+export type StreamAvailabilityStatus =
+  | "available"
+  | "private"
+  | "deleted"
+  | "offline"
+  | "unavailable"
+  | "network"
+  | "outdated";
 
 export interface ParsedArgs {
   command: CliCommand;
@@ -38,6 +46,16 @@ export interface RunOptions {
 
 export interface CommandRunner {
   run(command: string, args?: readonly string[], options?: RunOptions): CommandResult;
+}
+
+export interface StreamAvailability {
+  ok: boolean;
+  status: StreamAvailabilityStatus;
+  url: string;
+  videoId?: string;
+  title?: string;
+  message: string;
+  fallbackUsed: boolean;
 }
 
 export interface OpenCommand {

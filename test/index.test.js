@@ -11,7 +11,9 @@ import {
   run,
   runSetup
 } from "../dist/index.js";
+import { CLAUDE_FM_SEARCH_LOCATOR } from "../dist/constants.js";
 import { formatDisplayTitle } from "../dist/format.js";
+import { checkStreamAvailability, resolveAvailableStream } from "../dist/player.js";
 import { buildDashboard } from "../dist/tui/dashboard.js";
 import { formatArtistLine } from "../dist/tui/sections.js";
 import { detectColorMode, resolveTheme } from "../dist/tui/theme.js";
@@ -204,7 +206,19 @@ test("resolvePlayer rejects unsupported player names", () => {
 
 test("resolveAudioUrl uses yt-dlp output", () => {
   const runner = {
-    run(command) {
+    run(command, args = []) {
+      if (command === "yt-dlp" && args[0] === "-J") {
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            id: "YmQ7jRgf4f0",
+            webpage_url: CLAUDE_FM_URL,
+            live_status: "is_live"
+          }),
+          stderr: ""
+        };
+      }
+
       return {
         status: command === "yt-dlp" ? 0 : 1,
         stdout: "https://cdn.example.test/audio.m3u8\n",
@@ -216,19 +230,168 @@ test("resolveAudioUrl uses yt-dlp output", () => {
   assert.equal(resolveAudioUrl(CLAUDE_FM_URL, runner), "https://cdn.example.test/audio.m3u8");
 });
 
+test("checkStreamAvailability reports successful metadata availability", () => {
+  const runner = {
+    run(command, args = [], options) {
+      assert.equal(command, "yt-dlp");
+      assert.deepEqual(args, ["-J", "--no-playlist", CLAUDE_FM_URL]);
+      assert.deepEqual(options, { encoding: "utf8" });
+
+      return {
+        status: 0,
+        stdout: JSON.stringify({
+          id: "YmQ7jRgf4f0",
+          title: "Claude FM music for thinking and building",
+          webpage_url: CLAUDE_FM_URL,
+          availability: "public",
+          live_status: "is_live"
+        }),
+        stderr: ""
+      };
+    }
+  };
+
+  assert.deepEqual(checkStreamAvailability(CLAUDE_FM_URL, runner), {
+    ok: true,
+    status: "available",
+    url: CLAUDE_FM_URL,
+    videoId: "YmQ7jRgf4f0",
+    title: "Claude FM music for thinking and building",
+    message: "YouTube stream is available.",
+    fallbackUsed: false
+  });
+});
+
+test("resolveAvailableStream falls back from deleted default URL to search locator", () => {
+  const invocations = [];
+  const runner = {
+    run(command, args = [], options) {
+      invocations.push([command, args, options]);
+
+      if (args.at(-1) === CLAUDE_FM_URL) {
+        return {
+          status: 1,
+          stdout: "",
+          stderr: "ERROR: [youtube] YmQ7jRgf4f0: Video unavailable. This video has been removed."
+        };
+      }
+
+      if (args.at(-1) === CLAUDE_FM_SEARCH_LOCATOR) {
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            id: "currentClaudeFm",
+            title: "Claude FM live",
+            webpage_url: "https://www.youtube.com/watch?v=currentClaudeFm",
+            live_status: "is_live"
+          }),
+          stderr: ""
+        };
+      }
+
+      throw new Error(`Unexpected args: ${args.join(" ")}`);
+    }
+  };
+
+  const availability = resolveAvailableStream(CLAUDE_FM_URL, runner);
+
+  assert.equal(availability.ok, true);
+  assert.equal(availability.status, "available");
+  assert.equal(availability.url, "https://www.youtube.com/watch?v=currentClaudeFm");
+  assert.equal(availability.videoId, "currentClaudeFm");
+  assert.equal(availability.fallbackUsed, true);
+  assert.match(availability.message, /Default stream unavailable/);
+  assert.deepEqual(
+    invocations.map(([, args]) => args),
+    [
+      ["-J", "--no-playlist", CLAUDE_FM_URL],
+      ["-J", "--no-playlist", CLAUDE_FM_SEARCH_LOCATOR]
+    ]
+  );
+});
+
+test("resolveAvailableStream handles yt-dlp search result containers", () => {
+  const runner = {
+    run(command, args = []) {
+      if (args.at(-1) === CLAUDE_FM_URL) {
+        return {
+          status: 1,
+          stdout: "",
+          stderr: "ERROR: [youtube] YmQ7jRgf4f0: Video unavailable. This video has been removed."
+        };
+      }
+
+      return {
+        status: 0,
+        stdout: JSON.stringify({
+          id: "ytsearch1:Claude FM live",
+          entries: [{
+            id: "searchResult",
+            title: "Claude FM live",
+            webpage_url: "https://www.youtube.com/watch?v=searchResult",
+            live_status: "is_live"
+          }]
+        }),
+        stderr: ""
+      };
+    }
+  };
+
+  const availability = resolveAvailableStream(CLAUDE_FM_URL, runner);
+
+  assert.equal(availability.ok, true);
+  assert.equal(availability.url, "https://www.youtube.com/watch?v=searchResult");
+  assert.equal(availability.videoId, "searchResult");
+  assert.equal(availability.fallbackUsed, true);
+});
+
+test("checkStreamAvailability classifies practical yt-dlp failures", () => {
+  const cases = [
+    ["outdated", "ERROR: Unable to extract nsig; please update yt-dlp"],
+    ["private", "ERROR: This video is private. Sign in if you've been granted access."],
+    ["offline", "ERROR: This live event will begin in a few hours."],
+    ["network", "ERROR: Unable to download webpage: timed out"]
+  ];
+
+  for (const [status, stderr] of cases) {
+    const runner = {
+      run() {
+        return {
+          status: 1,
+          stdout: "",
+          stderr
+        };
+      }
+    };
+
+    const availability = checkStreamAvailability(CLAUDE_FM_URL, runner);
+
+    assert.equal(availability.ok, false);
+    assert.equal(availability.status, status);
+    assert.equal(availability.url, CLAUDE_FM_URL);
+    assert.equal(availability.fallbackUsed, false);
+    assert.match(availability.message, /Stream unavailable|Network issue|yt-dlp appears outdated/);
+    assert.match(availability.message, new RegExp(stderr.replace(/^ERROR: /, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&").slice(0, 40)));
+  }
+});
+
 test("resolveWatchUrl converts a search locator into a YouTube watch URL", () => {
   const runner = {
     run() {
       return {
         status: 0,
-        stdout: "YmQ7jRgf4f0\n",
+        stdout: JSON.stringify({
+          id: "YmQ7jRgf4f0",
+          title: "Claude FM live",
+          live_status: "is_live"
+        }),
         stderr: ""
       };
     }
   };
 
   assert.equal(
-    resolveWatchUrl(CLAUDE_FM_URL, runner),
+    resolveWatchUrl(CLAUDE_FM_SEARCH_LOCATOR, runner),
     "https://www.youtube.com/watch?v=YmQ7jRgf4f0"
   );
 });
@@ -250,7 +413,11 @@ test("playStream launches mpv when available", async () => {
       if (command === "yt-dlp") {
         return {
           status: 0,
-          stdout: "https://cdn.example.test/audio.m3u8\n",
+          stdout: JSON.stringify({
+            id: "YmQ7jRgf4f0",
+            webpage_url: CLAUDE_FM_URL,
+            live_status: "is_live"
+          }),
           stderr: ""
         };
       }
