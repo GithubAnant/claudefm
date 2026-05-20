@@ -28,12 +28,27 @@ const CLEAR_INPUT_KEYS = new Set(["\u0015", "\u000b", "\u001b\u007f"]);
 const COMMANDS = ["Set YT stream link", "Select output device", "GitHub repo"] as const;
 const PROJECT_URL = "https://github.com/GithubAnant/claudefm";
 const SETTINGS_TIP = "tip: rewind 10-15s if live audio stutters";
-const RENDER_INTERVAL_MS = 500;
+const RENDER_THROTTLE_MS = 500;
+export const LONG_PAUSE_RELOAD_MS = 15 * 60 * 1000;
+const MPV_HEALTHCHECK_INTERVAL_MS = 5 * 60 * 1000;
 const RETRY_DELAYS_MS = [2000, 5000, 10000];
 let commandPaletteRequestId = 0;
 
 export function shouldUseDashboard(options: Pick<ParsedArgs, "json" | "ui">): boolean {
   return options.ui && !options.json && Boolean(process.stdout.isTTY && process.stdin.isTTY);
+}
+
+export function shouldRefreshPausedPlayback(
+  state: Pick<DashboardState, "runtime" | "isLiveStream">,
+  pausedSince: number | null,
+  now = Date.now()
+): boolean {
+  return Boolean(
+    state.isLiveStream &&
+    state.runtime.paused &&
+    pausedSince !== null &&
+    now - pausedSince >= LONG_PAUSE_RELOAD_MS
+  );
 }
 
 export async function runDashboard(
@@ -55,7 +70,8 @@ export async function runDashboard(
     canUseRichPlayer: resolvedPlayer === "mpv",
     installCommand: environment.installPlan.command,
     playerLabel: resolvedPlayer ?? environment.preferredPlayer ?? "none",
-    url: options.url
+    url: options.url,
+    isLiveStream: false
   };
   const openBrowser = () => openInBrowser(state.url, runner, platform) === 0;
   const openProject = () => openInBrowser(PROJECT_URL, runner, platform) === 0;
@@ -127,10 +143,11 @@ async function runRichDashboard(
 async function startRichPlayback(
   state: DashboardState,
   streamUrl: string,
-  runner: CommandRunner
+  runner: CommandRunner,
+  options: { paused?: boolean; startSeconds?: number } = {}
 ): Promise<MpvController> {
   state.status = "STARTING";
-  state.runtime = { ...state.runtime, status: "starting" };
+  state.runtime = { ...state.runtime, status: "starting", paused: Boolean(options.paused) };
   state.detail = "Checking YouTube stream availability.";
   state.error = undefined;
   const availability = resolveAvailableStream(streamUrl, runner);
@@ -143,6 +160,7 @@ async function startRichPlayback(
     state.url = availability.url;
     state.detail = "Connecting to the live stream.";
   }
+  state.isLiveStream = availability.isLive;
 
   controller.on("state", (nextState: MpvRuntimeState) => {
     state.runtime = nextState;
@@ -152,7 +170,10 @@ async function startRichPlayback(
   });
 
   try {
-    await controller.start(availability.url);
+    await controller.start(availability.url, {
+      paused: options.paused,
+      startSeconds: options.startSeconds
+    });
   } catch (error) {
     await controller.destroy().catch(() => undefined);
     throw error;
@@ -196,15 +217,21 @@ async function holdInteractiveDashboard(
   const cleanupTasks = new Set<() => void>();
   let finished = false;
   let renderTimer: NodeJS.Timeout | undefined;
+  let healthTimer: NodeJS.Timeout | undefined;
   let controller: MpvController | null = initialController;
   let retrying = false;
   let retryCount = 0;
+  let checkingHealth = false;
+  let pausedSince: number | null = state.runtime.paused ? Date.now() : null;
 
   const cleanup = async () => {
     cleanupTasks.forEach((task) => task());
     cleanupTasks.clear();
     if (renderTimer) {
-      clearInterval(renderTimer);
+      clearTimeout(renderTimer);
+    }
+    if (healthTimer) {
+      clearInterval(healthTimer);
     }
     exitScreen();
     await controller?.destroy().catch(() => undefined);
@@ -213,7 +240,6 @@ async function holdInteractiveDashboard(
   enterScreen();
   resetRenderFrame();
   render(state, { clear: true, force: true });
-  renderTimer = setInterval(() => render(state), RENDER_INTERVAL_MS);
 
   return await new Promise<number>((resolve) => {
     const finish = async (code: number) => {
@@ -226,9 +252,71 @@ async function holdInteractiveDashboard(
       resolve(code);
     };
 
+    const syncPausedSince = () => {
+      if (state.runtime.paused) {
+        pausedSince ??= Date.now();
+        return;
+      }
+
+      pausedSince = null;
+    };
+
+    const checkControllerHealth = async () => {
+      if (finished || retrying || checkingHealth || !controller) {
+        return;
+      }
+
+      checkingHealth = true;
+      try {
+        await controller.ping();
+      } catch (error) {
+        reportError(error);
+      } finally {
+        checkingHealth = false;
+      }
+    };
+
+    const renderNow = (options: RenderOptions = {}) => {
+      if (renderTimer) {
+        clearTimeout(renderTimer);
+        renderTimer = undefined;
+      }
+
+      syncPausedSince();
+      render(state, options);
+    };
+
+    const scheduleRender = (options: RenderOptions = {}) => {
+      if (finished) {
+        return;
+      }
+
+      if (options.clear || options.force) {
+        renderNow(options);
+        return;
+      }
+
+      if (renderTimer) {
+        return;
+      }
+
+      renderTimer = setTimeout(() => {
+        renderTimer = undefined;
+        syncPausedSince();
+        render(state);
+      }, RENDER_THROTTLE_MS);
+      renderTimer.unref?.();
+    };
+
     const reportError = (error: unknown) => {
       state.error = error instanceof Error ? error.message : String(error);
+      renderNow({ force: true });
     };
+
+    healthTimer = setInterval(() => {
+      void checkControllerHealth();
+    }, MPV_HEALTHCHECK_INTERVAL_MS);
+    healthTimer.unref?.();
 
     const withController = (): MpvController | null => {
       if (controller) {
@@ -236,11 +324,39 @@ async function holdInteractiveDashboard(
       }
 
       state.error = "Playback is not running.";
-      render(state, { force: true });
+      renderNow({ force: true });
       return null;
     };
 
-    const attachExitHandler = (nextController: MpvController) => {
+    const togglePlayback = async () => {
+      syncPausedSince();
+      const activeController = withController();
+      if (!activeController) {
+        return;
+      }
+
+      if (shouldRefreshPausedPlayback(state, pausedSince)) {
+        state.status = "STARTING";
+        state.runtime = { ...state.runtime, status: "starting", paused: false };
+        state.detail = "Refreshing the stream after a long pause.";
+        state.error = undefined;
+        renderNow({ force: true });
+        await activeController.resumeFresh(state.url);
+        pausedSince = null;
+        return;
+      }
+
+      const wasPaused = state.runtime.paused;
+      await activeController.togglePause();
+      pausedSince = wasPaused ? null : Date.now();
+    };
+
+    const attachControllerHandlers = (nextController: MpvController) => {
+      const handleState = () => scheduleRender();
+      nextController.on("state", handleState);
+      cleanupTasks.add(() => {
+        nextController.off("state", handleState);
+      });
       nextController.once("exit", () => {
         void handleUnexpectedExit();
       });
@@ -253,6 +369,8 @@ async function holdInteractiveDashboard(
 
       controller = null;
       retrying = true;
+      const restorePaused = state.runtime.paused || pausedSince !== null;
+      const restorePosition = state.isLiveStream ? undefined : state.runtime.timePos ?? undefined;
 
       while (!finished && retryCount < RETRY_DELAYS_MS.length) {
         const waitMs = RETRY_DELAYS_MS[retryCount];
@@ -261,7 +379,7 @@ async function holdInteractiveDashboard(
         state.runtime = { ...state.runtime, status: "starting" };
         state.detail = `Playback stopped. Retrying in ${Math.round(waitMs / 1000)}s.`;
         state.error = `mpv exited unexpectedly. Retry ${retryCount}/${RETRY_DELAYS_MS.length}.`;
-        render(state, { force: true });
+        renderNow({ force: true });
 
         await delay(waitMs);
         if (finished) {
@@ -269,15 +387,25 @@ async function holdInteractiveDashboard(
         }
 
         try {
-          const nextController = await startRichPlayback(state, state.url, runner);
+          const nextController = await startRichPlayback(state, state.url, runner, {
+            paused: restorePaused,
+            startSeconds: restorePosition
+          });
           controller = nextController;
           retrying = false;
-          attachExitHandler(nextController);
-          render(state, { force: true });
+          retryCount = 0;
+          if (restorePaused) {
+            pausedSince ??= Date.now();
+            state.runtime = { ...state.runtime, status: "paused", paused: true };
+            state.status = "PAUSED";
+            state.detail = "Paused. Press space to resume.";
+          }
+          attachControllerHandlers(nextController);
+          renderNow({ force: true });
           return;
         } catch (error) {
           state.error = formatPlaybackError(error);
-          render(state, { force: true });
+          renderNow({ force: true });
         }
       }
 
@@ -286,7 +414,7 @@ async function holdInteractiveDashboard(
       state.runtime = { ...state.runtime, status: "idle" };
       state.detail = "Playback stopped after retry attempts. Press q to quit.";
       state.error = "Could not restore playback.";
-      render(state, { force: true });
+      renderNow({ force: true });
     };
 
     const handleSetStreamUrl = async (nextUrl: string) => {
@@ -295,6 +423,7 @@ async function holdInteractiveDashboard(
       state.status = "STARTING";
       state.headline = "Loading stream";
       state.detail = "Switching stream link.";
+      renderNow({ force: true });
       const activeController = withController();
       if (!activeController) {
         return;
@@ -302,6 +431,7 @@ async function holdInteractiveDashboard(
 
       const availability = resolveAvailableStream(nextUrl, runner);
       state.url = availability.url;
+      state.isLiveStream = availability.isLive;
       await activeController.loadUrl(availability.url);
     };
     const handleListAudioDevices = () => {
@@ -316,6 +446,7 @@ async function holdInteractiveDashboard(
 
       await activeController.selectAudioDevice(device.name);
       state.detail = `Output device set to ${device.description}.`;
+      renderNow({ force: true });
     };
 
     const handleKey = (chunk: Buffer) => {
@@ -327,7 +458,7 @@ async function holdInteractiveDashboard(
         selectAudioDevice: handleSelectAudioDevice,
         openProject
       })) {
-        render(state, { force: true });
+        renderNow({ force: true });
         return;
       }
 
@@ -339,12 +470,13 @@ async function holdInteractiveDashboard(
       if ((key === "o" || key === "O") && openBrowser) {
         if (!openBrowser()) {
           state.error = "Browser handoff failed.";
+          renderNow({ force: true });
         }
         return;
       }
 
       if (key === " ") {
-        void withController()?.togglePause().catch(reportError);
+        void togglePlayback().catch(reportError);
         return;
       }
 
@@ -377,7 +509,7 @@ async function holdInteractiveDashboard(
       stdin.pause();
     });
 
-    const handleResize = () => render(state, { clear: true, force: true });
+    const handleResize = () => renderNow({ clear: true, force: true });
     stdout.on("resize", handleResize);
     cleanupTasks.add(() => {
       stdout.off("resize", handleResize);
@@ -387,7 +519,7 @@ async function holdInteractiveDashboard(
     const handleSigTerm = () => void finish(0);
     process.once("SIGINT", handleSigInt);
     process.once("SIGTERM", handleSigTerm);
-    attachExitHandler(initialController);
+    attachControllerHandlers(initialController);
     cleanupTasks.add(() => {
       process.off("SIGINT", handleSigInt);
       process.off("SIGTERM", handleSigTerm);

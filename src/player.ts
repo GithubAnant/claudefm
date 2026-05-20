@@ -1,5 +1,11 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { CLAUDE_FM_SEARCH_LOCATOR, CLAUDE_FM_URL, SUPPORTED_PLAYERS, YOUTUBE_WATCH_URL_PREFIX } from "./constants.js";
+import {
+  CLAUDE_FM_SEARCH_LOCATOR,
+  CLAUDE_FM_URL,
+  SUPPORTED_PLAYERS,
+  YOUTUBE_WATCH_URL_PREFIX,
+  YTDLP_TIMEOUT_MS
+} from "./constants.js";
 import { getOpenCommand } from "./platform.js";
 import type {
   CommandRunner,
@@ -40,7 +46,8 @@ export function resolveAudioUrl(streamUrl: string, runner: CommandRunner): strin
 
   const availability = resolveAvailableStream(streamUrl, runner);
   const result = runner.run("yt-dlp", ["-g", availability.url], {
-    encoding: "utf8"
+    encoding: "utf8",
+    timeoutMs: YTDLP_TIMEOUT_MS
   });
 
   if (result.status !== 0) {
@@ -88,13 +95,15 @@ export function checkStreamAvailability(
       ok: true,
       status: "available",
       url: streamUrl,
+      isLive: false,
       message: "Direct audio stream is available.",
       fallbackUsed
     };
   }
 
   const result = runner.run("yt-dlp", ["-J", "--no-playlist", streamUrl], {
-    encoding: "utf8"
+    encoding: "utf8",
+    timeoutMs: YTDLP_TIMEOUT_MS
   });
 
   if (result.status !== 0) {
@@ -103,6 +112,7 @@ export function checkStreamAvailability(
       ok: false,
       status,
       url: streamUrl,
+      isLive: false,
       message: formatAvailabilityMessage(status, result.stderr || result.stdout),
       fallbackUsed
     };
@@ -116,12 +126,14 @@ export function checkStreamAvailability(
       ok: false,
       status: "unavailable",
       url: streamUrl,
+      isLive: false,
       message: "Stream unavailable: yt-dlp returned unreadable metadata.",
       fallbackUsed
     };
   }
 
   const status = classifyMetadata(metadata);
+  const isLive = isLiveMetadata(metadata);
   const videoId = typeof metadata.id === "string" ? metadata.id : undefined;
   const title = typeof metadata.title === "string" ? metadata.title : undefined;
   const webpageUrl = typeof metadata.webpage_url === "string" && metadata.webpage_url.length > 0
@@ -135,6 +147,7 @@ export function checkStreamAvailability(
       ok: false,
       status,
       url: webpageUrl,
+      isLive,
       videoId,
       title,
       message: formatAvailabilityMessage(status),
@@ -146,6 +159,7 @@ export function checkStreamAvailability(
     ok: true,
     status,
     url: webpageUrl,
+    isLive,
     videoId,
     title,
     message: fallbackUsed
@@ -267,6 +281,11 @@ function classifyMetadata(metadata: Record<string, unknown>): StreamAvailability
   return "available";
 }
 
+function isLiveMetadata(metadata: Record<string, unknown>): boolean {
+  const liveStatus = typeof metadata.live_status === "string" ? metadata.live_status.toLowerCase() : "";
+  return liveStatus === "is_live";
+}
+
 function classifyYtdlpFailure(detail: string): StreamAvailabilityStatus {
   const normalized = detail.toLowerCase();
 
@@ -290,7 +309,7 @@ function classifyYtdlpFailure(detail: string): StreamAvailabilityStatus {
     return "offline";
   }
 
-  if (/timed out|timeout|temporary failure|network|connection|dns|name resolution|http error 5|unable to download webpage/.test(normalized)) {
+  if (/timed out|timeout|etimedout|temporary failure|network|connection|dns|name resolution|http error 5|unable to download webpage/.test(normalized)) {
     return "network";
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "claudefm",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Play the Claude FM YouTube live stream from your terminal.",
   "type": "module",
   "bin": {

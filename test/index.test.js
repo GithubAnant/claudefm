@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   CLAUDE_FM_URL,
+  createCommandRunner,
   inspectEnvironment,
   parseArgs,
   playStream,
@@ -11,10 +12,10 @@ import {
   run,
   runSetup
 } from "../dist/index.js";
-import { CLAUDE_FM_SEARCH_LOCATOR } from "../dist/constants.js";
+import { CLAUDE_FM_SEARCH_LOCATOR, YTDLP_TIMEOUT_MS } from "../dist/constants.js";
 import { formatDisplayTitle } from "../dist/format.js";
 import { checkStreamAvailability, resolveAvailableStream } from "../dist/player.js";
-import { buildDashboard } from "../dist/tui/dashboard.js";
+import { buildDashboard, LONG_PAUSE_RELOAD_MS, shouldRefreshPausedPlayback } from "../dist/tui/dashboard.js";
 import { formatArtistLine } from "../dist/tui/sections.js";
 import { detectColorMode, resolveTheme } from "../dist/tui/theme.js";
 
@@ -92,6 +93,7 @@ function dashboardState(overrides = {}) {
     installCommand: "brew install yt-dlp mpv",
     playerLabel: "mpv",
     url: CLAUDE_FM_URL,
+    isLiveStream: true,
     ...overrides
   };
 }
@@ -235,7 +237,7 @@ test("checkStreamAvailability reports successful metadata availability", () => {
     run(command, args = [], options) {
       assert.equal(command, "yt-dlp");
       assert.deepEqual(args, ["-J", "--no-playlist", CLAUDE_FM_URL]);
-      assert.deepEqual(options, { encoding: "utf8" });
+      assert.deepEqual(options, { encoding: "utf8", timeoutMs: YTDLP_TIMEOUT_MS });
 
       return {
         status: 0,
@@ -255,11 +257,37 @@ test("checkStreamAvailability reports successful metadata availability", () => {
     ok: true,
     status: "available",
     url: CLAUDE_FM_URL,
+    isLive: true,
     videoId: "YmQ7jRgf4f0",
     title: "Claude FM music for thinking and building",
     message: "YouTube stream is available.",
     fallbackUsed: false
   });
+});
+
+test("checkStreamAvailability marks regular videos as non-live", () => {
+  const videoUrl = "https://www.youtube.com/watch?v=regularVideo";
+  const runner = {
+    run() {
+      return {
+        status: 0,
+        stdout: JSON.stringify({
+          id: "regularVideo",
+          title: "Regular video",
+          webpage_url: videoUrl,
+          availability: "public",
+          live_status: "not_live"
+        }),
+        stderr: ""
+      };
+    }
+  };
+
+  const availability = checkStreamAvailability(videoUrl, runner);
+
+  assert.equal(availability.ok, true);
+  assert.equal(availability.isLive, false);
+  assert.equal(availability.url, videoUrl);
 });
 
 test("resolveAvailableStream falls back from deleted default URL to search locator", () => {
@@ -350,7 +378,8 @@ test("checkStreamAvailability classifies practical yt-dlp failures", () => {
     ["outdated", "ERROR: Unable to extract nsig; please update yt-dlp"],
     ["private", "ERROR: This video is private. Sign in if you've been granted access."],
     ["offline", "ERROR: This live event will begin in a few hours."],
-    ["network", "ERROR: Unable to download webpage: timed out"]
+    ["network", "ERROR: Unable to download webpage: timed out"],
+    ["network", "spawnSync yt-dlp ETIMEDOUT"]
   ];
 
   for (const [status, stderr] of cases) {
@@ -537,6 +566,16 @@ test("run reports unknown args", async () => {
   assert.match(errors[0], /Unknown argument: --wat/);
 });
 
+test("createCommandRunner reports subprocess timeouts", () => {
+  const runner = createCommandRunner();
+  const result = runner.run(process.execPath, ["-e", "setTimeout(() => {}, 1000)"], {
+    timeoutMs: 20
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /ETIMEDOUT/);
+});
+
 test("formatDisplayTitle removes Claude FM timestamp noise", () => {
   assert.equal(
     formatDisplayTitle("Claude FM music for thinking and building 2026-05-12 12:26"),
@@ -595,6 +634,23 @@ test("buildDashboard renders command palette", () => {
   assert.ok(plainLines.some((line) => line.includes("Select output device") && line.includes("enter")));
   assert.ok(plainLines.some((line) => line.includes("GitHub repo") && line.includes("enter")));
   assert.ok(plainLines.some((line) => line.includes("tip: rewind 10-15s if live audio stutters")));
+});
+
+test("paused playback refreshes only after a long pause", () => {
+  const now = Date.now();
+  const state = dashboardState();
+  state.runtime = { ...state.runtime, paused: true };
+
+  assert.equal(shouldRefreshPausedPlayback(state, null, now), false);
+  assert.equal(shouldRefreshPausedPlayback(state, now - LONG_PAUSE_RELOAD_MS + 1, now), false);
+  assert.equal(shouldRefreshPausedPlayback(state, now - LONG_PAUSE_RELOAD_MS, now), true);
+
+  state.isLiveStream = false;
+  assert.equal(shouldRefreshPausedPlayback(state, now - LONG_PAUSE_RELOAD_MS, now), false);
+
+  state.isLiveStream = true;
+  state.runtime = { ...state.runtime, paused: false };
+  assert.equal(shouldRefreshPausedPlayback(state, now - (LONG_PAUSE_RELOAD_MS * 2), now), false);
 });
 
 test("buildDashboard renders stream URL input as focused", () => {

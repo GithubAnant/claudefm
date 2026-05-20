@@ -42,6 +42,7 @@ export interface RunOptions {
   encoding?: BufferEncoding;
   shell?: boolean;
   stdio?: "ignore" | "inherit" | "pipe";
+  timeoutMs?: number;
 }
 
 export interface CommandRunner {
@@ -52,6 +53,7 @@ export interface StreamAvailability {
   ok: boolean;
   status: StreamAvailabilityStatus;
   url: string;
+  isLive: boolean;
   videoId?: string;
   title?: string;
   message: string;

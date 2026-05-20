@@ -16,19 +16,31 @@ interface MpvMessage {
   name?: string;
 }
 
+interface PendingRequest {
+  resolve: (value: unknown) => void;
+  reject: (reason?: unknown) => void;
+  timeout: NodeJS.Timeout;
+}
+
 export interface MpvAudioDevice {
   name: string;
   description: string;
   selected?: boolean;
 }
 
+export interface MpvStartOptions {
+  paused?: boolean;
+  startSeconds?: number;
+}
+
 export class MpvController extends EventEmitter {
   private static readonly SOCKET_WAIT_MS = 20000;
+  private static readonly IPC_REQUEST_TIMEOUT_MS = 5000;
   private child: ChildProcess | null = null;
   private socket: Socket | null = null;
   private buffer = "";
   private requestId = 0;
-  private pending = new Map<number, { resolve: (value: unknown) => void; reject: (reason?: unknown) => void }>();
+  private pending = new Map<number, PendingRequest>();
   private socketPath = join(tmpdir(), `claudefm-${process.pid}-${Date.now()}.sock`);
   private state: MpvRuntimeState = createInitialRuntimeState();
   private destroyed = false;
@@ -39,7 +51,7 @@ export class MpvController extends EventEmitter {
     return { ...this.state };
   }
 
-  async start(streamUrl: string = CLAUDE_FM_URL): Promise<void> {
+  async start(streamUrl: string = CLAUDE_FM_URL, options: MpvStartOptions = {}): Promise<void> {
     const child = spawn(
       "mpv",
       [
@@ -53,6 +65,8 @@ export class MpvController extends EventEmitter {
         "--cache=yes",
         "--cache-secs=5",
         `--input-ipc-server=${this.socketPath}`,
+        ...(options.paused ? ["--pause=yes"] : []),
+        ...(typeof options.startSeconds === "number" ? [`--start=${Math.max(0, options.startSeconds)}`] : []),
         streamUrl
       ],
       {
@@ -66,6 +80,7 @@ export class MpvController extends EventEmitter {
     this.state = {
       ...createInitialRuntimeState(),
       status: "starting",
+      paused: Boolean(options.paused),
       title: "Claude FM"
     };
     this.emitState();
@@ -124,6 +139,22 @@ export class MpvController extends EventEmitter {
     this.emitState();
   }
 
+  async resumeFresh(streamUrl: string): Promise<void> {
+    await this.send(["loadfile", streamUrl, "replace"]);
+    await this.send(["set_property", "pause", false]);
+    this.state = {
+      ...createInitialRuntimeState(),
+      status: "starting",
+      volume: this.state.volume,
+      title: "Refreshing stream"
+    };
+    this.emitState();
+  }
+
+  async ping(): Promise<void> {
+    await this.send(["get_property", "pause"]);
+  }
+
   async listAudioDevices(): Promise<MpvAudioDevice[]> {
     const [payload, activeDevice] = await Promise.all([
       this.send(["get_property", "audio-device-list"]),
@@ -171,10 +202,7 @@ export class MpvController extends EventEmitter {
     this.socket?.destroy();
     this.socket = null;
 
-    for (const pending of this.pending.values()) {
-      pending.reject(new Error("mpv controller destroyed"));
-    }
-    this.pending.clear();
+    this.rejectPending(new Error("mpv controller destroyed"));
 
     if (this.child && !this.child.killed) {
       this.child.kill("SIGTERM");
@@ -213,9 +241,8 @@ export class MpvController extends EventEmitter {
             socket.off("error", onError);
             this.socket = socket;
             socket.on("data", (chunk: Buffer) => this.handleSocketData(chunk));
-            socket.on("error", () => {
-              // The mpv process lifecycle is the authoritative signal.
-            });
+            socket.on("error", (error) => this.handleSocketFailure(error));
+            socket.on("close", () => this.handleSocketFailure(new Error("mpv IPC socket closed")));
             resolve();
           });
         });
@@ -272,6 +299,7 @@ export class MpvController extends EventEmitter {
         }
 
         this.pending.delete(payload.request_id);
+        clearTimeout(pending.timeout);
         if (payload.error && payload.error !== "success") {
           pending.reject(new Error(String(payload.error)));
         } else {
@@ -343,17 +371,64 @@ export class MpvController extends EventEmitter {
   }
 
   private send(command: unknown[]): Promise<unknown> {
-    if (!this.socket) {
+    if (!this.socket || !this.socket.writable || this.destroyed) {
       return Promise.reject(new Error("mpv IPC socket is not connected"));
     }
 
     this.requestId += 1;
     const requestId = this.requestId;
+    const commandName = typeof command[0] === "string" ? command[0] : "command";
 
     return new Promise((resolve, reject) => {
-      this.pending.set(requestId, { resolve, reject });
-      this.socket?.write(`${JSON.stringify({ command, request_id: requestId })}\n`);
+      const timeout = setTimeout(() => {
+        this.handleSocketFailure(new Error(`mpv IPC ${commandName} timed out`));
+      }, MpvController.IPC_REQUEST_TIMEOUT_MS);
+      timeout.unref?.();
+      this.pending.set(requestId, { resolve, reject, timeout });
+
+      try {
+        this.socket?.write(`${JSON.stringify({ command, request_id: requestId })}\n`);
+      } catch (error) {
+        this.rejectRequest(
+          requestId,
+          error instanceof Error ? error : new Error(String(error))
+        );
+      }
     });
+  }
+
+  private handleSocketFailure(error: Error): void {
+    if (this.destroyed || !this.socket) {
+      return;
+    }
+
+    const socket = this.socket;
+    this.socket = null;
+    socket?.destroy();
+    this.rejectPending(error);
+    this.state = { ...this.state, status: "idle" };
+    this.emitState();
+    this.emit("exit", { code: null, signal: null });
+    void this.destroy();
+  }
+
+  private rejectRequest(requestId: number, error: Error): void {
+    const pending = this.pending.get(requestId);
+    if (!pending) {
+      return;
+    }
+
+    this.pending.delete(requestId);
+    clearTimeout(pending.timeout);
+    pending.reject(error);
+  }
+
+  private rejectPending(error: Error): void {
+    for (const [requestId, pending] of this.pending.entries()) {
+      this.pending.delete(requestId);
+      clearTimeout(pending.timeout);
+      pending.reject(error);
+    }
   }
 
   private formatStderrTail(): string {

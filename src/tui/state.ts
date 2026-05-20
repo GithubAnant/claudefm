@@ -13,6 +13,7 @@ export interface DashboardState {
   installCommand?: string;
   playerLabel: string;
   url: string;
+  isLiveStream: boolean;
 }
 
 export interface CommandPaletteState {
