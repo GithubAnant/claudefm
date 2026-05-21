@@ -2,6 +2,8 @@ import Image from "next/image";
 import { DemoVideo } from "./demo-video";
 import { InstallCard } from "./install-card";
 import { NavLink } from "./nav-link";
+import { GitHubIcon } from "./github-icon";
+import { StarCount } from "./star-count";
 
 const controls = [
   ["space", "pause or resume"],
@@ -115,7 +117,10 @@ export default function Home() {
         <div className="nav-links" aria-label="Primary navigation">
           <NavLink href="#install">Install</NavLink>
           <NavLink href="#demo">Demo</NavLink>
-          <a href="https://github.com/GithubAnant/claudefm">Repo</a>
+          <a href="https://github.com/GithubAnant/claudefm" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+            GitHub
+            <StarCount />
+          </a>
         </div>
       </nav>
 
@@ -136,7 +141,8 @@ export default function Home() {
           </p>
 
           <div className="hero-actions" aria-label="Project links">
-            <a className="button secondary" href="https://github.com/GithubAnant/claudefm">
+            <a className="button secondary" href="https://github.com/GithubAnant/claudefm" style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <GitHubIcon size={20} />
               View repo
             </a>
           </div>
