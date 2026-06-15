@@ -125,21 +125,42 @@ async function runRichDashboard(
   openBrowser?: () => boolean,
   openProject?: () => boolean
 ): Promise<number> {
-  let controller: MpvController;
+  let nextUrl: string | undefined = streamUrl;
 
-  try {
-    controller = await startRichPlayback(state, streamUrl, runner);
-  } catch (error) {
-    state.status = "ERROR";
-    state.runtime = { ...state.runtime, status: "idle" };
-    state.error = formatPlaybackError(error);
-    state.detail = openBrowser
-      ? "Could not start mpv. Press o to open YouTube."
-      : "Could not start mpv. Run claudefm doctor.";
-    return await holdStaticDashboard(state, openBrowser, openProject);
+  while (nextUrl !== undefined) {
+    let controller: MpvController;
+
+    try {
+      controller = await startRichPlayback(state, nextUrl, runner);
+    } catch (error) {
+      if (!isStreamUnavailableError(error)) {
+        state.status = "ERROR";
+        state.runtime = { ...state.runtime, status: "idle" };
+        state.error = formatPlaybackError(error);
+        state.detail = openBrowser
+          ? "Could not start mpv. Press o to open YouTube."
+          : "Could not start mpv. Run claudefm doctor.";
+        return await holdStaticDashboard(state, openBrowser, openProject);
+      }
+
+      const recovered = await holdRecoveryDashboard(state, runner, openBrowser, openProject);
+      if (recovered === null) {
+        return 0;
+      }
+
+      nextUrl = recovered;
+      continue;
+    }
+
+    return await holdInteractiveDashboard(state, controller, runner, openBrowser, openProject);
   }
 
-  return await holdInteractiveDashboard(state, controller, runner, openBrowser, openProject);
+  return 0;
+}
+
+function isStreamUnavailableError(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return message.includes("stream unavailable") || message.includes("fallback search also failed");
 }
 
 async function startRichPlayback(
@@ -530,6 +551,109 @@ async function holdInteractiveDashboard(
   });
 }
 
+async function holdRecoveryDashboard(
+  state: DashboardState,
+  runner: CommandRunner,
+  openBrowser?: () => boolean,
+  openProject?: () => boolean
+): Promise<string | null> {
+  const stdin = process.stdin;
+  const stdout = process.stdout;
+
+  state.status = "ERROR";
+  state.runtime = { ...state.runtime, status: "idle" };
+  state.headline = "Claude FM";
+  state.error = "This stream is no longer valid. Press s to search, or ctrl+p to enter a URL.";
+  state.detail = "Stream unavailable. Search for the current Claude FM stream or paste a YouTube link.";
+
+  enterScreen();
+  resetRenderFrame();
+  render(state, { clear: true, force: true });
+
+  if (!stdin.isTTY) {
+    exitScreen();
+    return null;
+  }
+
+  return await new Promise<string | null>((resolve) => {
+    let settled = false;
+
+    const teardown = () => {
+      stdin.off("data", handleKey);
+      stdout.off("resize", handleResize);
+      stdin.setRawMode?.(false);
+      stdin.pause();
+      exitScreen();
+    };
+
+    const finishWith = (value: string | null) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      teardown();
+      resolve(value);
+    };
+
+    const tryResolveUrl = (candidate: string) => {
+      state.error = undefined;
+      state.detail = "Checking the stream...";
+      render(state, { force: true });
+
+      try {
+        const availability = resolveAvailableStream(candidate, runner);
+        state.url = availability.url;
+        saveStreamUrl(candidate);
+        finishWith(candidate);
+      } catch (error) {
+        state.error = `${formatPlaybackError(error)} Press s to search, or ctrl+p to enter a URL.`;
+        state.detail = "Stream unavailable. Search for the current Claude FM stream or paste a YouTube link.";
+        render(state, { force: true });
+      }
+    };
+
+    const handleResize = () => render(state, { clear: true, force: true });
+    const handleSetStreamUrl = async (nextUrl: string) => {
+      tryResolveUrl(nextUrl);
+    };
+
+    const handleKey = (chunk: Buffer) => {
+      const key = chunk.toString("utf8");
+
+      if (handleCommandPaletteKey(state, key, {
+        setStreamUrl: handleSetStreamUrl,
+        openProject
+      })) {
+        render(state, { force: true });
+        return;
+      }
+
+      if (key === "s" || key === "S") {
+        tryResolveUrl(CLAUDE_FM_SEARCH_LOCATOR);
+        return;
+      }
+
+      if ((key === "o" || key === "O") && openBrowser) {
+        if (!openBrowser()) {
+          state.error = "Browser handoff failed.";
+        }
+        render(state, { force: true });
+        return;
+      }
+
+      if (key === "q" || key === "Q" || key === "\u0003") {
+        finishWith(null);
+      }
+    };
+
+    stdin.setRawMode?.(true);
+    stdin.resume();
+    stdin.on("data", handleKey);
+    stdout.on("resize", handleResize);
+  });
+}
+
 async function holdStaticDashboard(
   state: DashboardState,
   openBrowser?: () => boolean,
@@ -554,6 +678,7 @@ async function holdStaticDashboard(
       state.detail = openBrowser
         ? "Stream link updated. Press o to open YouTube."
         : "Stream link updated.";
+      saveStreamUrl(nextUrl);
     };
 
     const handleKey = (chunk: Buffer) => {
