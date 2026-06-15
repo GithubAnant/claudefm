@@ -1,6 +1,8 @@
 import process from "node:process";
 import { clearScreenDown, cursorTo } from "node:readline";
 import { setTimeout as delay } from "node:timers/promises";
+import { CLAUDE_FM_SEARCH_LOCATOR } from "../constants.js";
+import { saveStreamUrl } from "../config.js";
 import { inspectEnvironment } from "../environment.js";
 import { formatClock, formatDisplayTitle, renderBar } from "../format.js";
 import { MpvController, type MpvAudioDevice } from "../mpv-controller.js";
@@ -433,6 +435,7 @@ async function holdInteractiveDashboard(
       state.url = availability.url;
       state.isLiveStream = availability.isLive;
       await activeController.loadUrl(availability.url);
+      saveStreamUrl(nextUrl);
     };
     const handleListAudioDevices = () => {
       const activeController = withController();

@@ -1,4 +1,4 @@
-import { CLAUDE_FM_URL } from "./constants.js";
+import { getDefaultStreamUrl } from "./config.js";
 import type { ParseResult, ParsedArgs } from "./types.js";
 
 export function printHelp(): void {
@@ -27,7 +27,7 @@ export function parseArgs(argv: string[] = []): ParseResult {
   const parsed: ParsedArgs = {
     command: "play",
     player: undefined,
-    url: CLAUDE_FM_URL,
+    url: getDefaultStreamUrl(),
     json: false,
     yes: false,
     print: false,
