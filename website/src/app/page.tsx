@@ -21,7 +21,7 @@ const links = [
   ["X", "https://x.com/anant_hq"]
 ];
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://claudefm.vercel.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://claudefm.anants.studio";
 
 const faqs = [
   {

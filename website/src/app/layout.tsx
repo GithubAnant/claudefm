@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Databuddy } from "@databuddy/sdk/react";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://claudefm.vercel.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://claudefm.anants.studio";
 const title = "ClaudeFM CLI";
 const description =
   "Run ClaudeFM as a terminal music player for the Claude FM YouTube live stream, with mpv playback, yt-dlp stream resolution, keyboard controls, and output-device settings.";
