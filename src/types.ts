@@ -75,6 +75,7 @@ export interface InstallPlan {
 export interface EnvironmentCommands {
   "yt-dlp": boolean;
   mpv: boolean;
+  mpvIpc: boolean;
   ffplay: boolean;
   open: boolean;
   brew: boolean;

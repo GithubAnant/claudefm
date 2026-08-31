@@ -14,6 +14,7 @@ export function printDoctor(environment: EnvironmentInfo): void {
     `Platform: ${environment.platform}`,
     `yt-dlp: ${environment.commands["yt-dlp"] ? "found" : "missing"}`,
     `mpv: ${environment.commands.mpv ? "found" : "missing"}`,
+    `mpv IPC: ${environment.commands.mpvIpc ? "working" : "failed"}`,
     `ffplay: ${environment.commands.ffplay ? "found" : "missing"}`,
     `browser opener: ${environment.commands.open ? "found" : "missing"}`,
     `terminal playback: ${environment.canPlayTerminal ? "ready" : "not ready"}`
@@ -21,6 +22,12 @@ export function printDoctor(environment: EnvironmentInfo): void {
 
   for (const line of lines) {
     console.log(line);
+  }
+
+  if (environment.commands.mpv && !environment.commands.mpvIpc) {
+    console.log("");
+    console.log("WARNING: mpv found but IPC test failed. Rich controls may not work.");
+    console.log("Try: claudefm play --player ffplay");
   }
 
   if (environment.installPlan.command) {

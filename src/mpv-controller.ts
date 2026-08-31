@@ -8,6 +8,8 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { CLAUDE_FM_URL } from "./constants.js";
 import type { MpvRuntimeState } from "./types.js";
 
+const IS_WINDOWS = process.platform === "win32";
+
 interface MpvMessage {
   event?: string;
   request_id?: number;
@@ -42,6 +44,7 @@ export class MpvController extends EventEmitter {
   private requestId = 0;
   private pending = new Map<number, PendingRequest>();
   private socketPath = join(tmpdir(), `claudefm-${process.pid}-${Date.now()}.sock`);
+  private ipcPath = IS_WINDOWS ? `\\\\.\\pipe\\${this.socketPath}` : this.socketPath;
   private state: MpvRuntimeState = createInitialRuntimeState();
   private destroyed = false;
   private startupError: Error | null = null;
@@ -223,14 +226,14 @@ export class MpvController extends EventEmitter {
         throw new Error(`mpv exited before IPC socket became available${this.formatStderrTail()}`);
       }
 
-      if (!existsSync(this.socketPath)) {
+      if (!IS_WINDOWS && !existsSync(this.socketPath)) {
         await delay(100);
         continue;
       }
 
       try {
         await new Promise<void>((resolve, reject) => {
-          const socket = createConnection(this.socketPath);
+          const socket = createConnection(this.ipcPath);
           const onError = (reason: Error) => {
             socket.destroy();
             reject(reason);
