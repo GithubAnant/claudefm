@@ -143,7 +143,7 @@ test("inspectEnvironment prefers mpv when available", () => {
 
   assert.equal(environment.preferredPlayer, "mpv");
   assert.equal(environment.canPlayTerminal, true);
-  assert.equal(environment.installPlan.command, "brew install yt-dlp mpv");
+  assert.equal(environment.installPlan.command, undefined);
 });
 
 test("inspectEnvironment uses WinGet setup guidance on Windows", () => {
@@ -160,7 +160,10 @@ test("inspectEnvironment uses WinGet setup guidance on Windows", () => {
   const environment = inspectEnvironment(runner, "win32");
 
   assert.equal(environment.canPlayTerminal, false);
-  assert.equal(environment.installPlan.command, "winget install yt-dlp.yt-dlp mpv.net");
+  assert.equal(
+    environment.installPlan.command,
+    "winget install --id yt-dlp.yt-dlp -e ; winget install --id mpv-player.mpv-CI.MSVC -e --source winget"
+  );
   assert.match(environment.installPlan.note, /Restart the terminal/);
 });
 
